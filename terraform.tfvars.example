@@ -1,0 +1,25 @@
+# Copy this file to terraform.tfvars and fill in your values.
+# terraform.tfvars is git-ignored — never commit it.
+
+# GCP project ID where lab resources will be deployed.
+project_id = "<YOUR_PROJECT_ID>"
+
+# GCP region. All labs default to europe-west1; override per-lab if needed.
+region = "europe-west1"
+
+# GCP zone for compute resources.
+zone = "europe-west1-b"
+
+# Name of the GCS bucket that holds Terraform remote state for all labs.
+# Create it once with:
+#   gcloud storage buckets create gs://<NAME> --project=<PROJECT_ID> \
+#     --location=<REGION> --uniform-bucket-level-access
+state_bucket = "<YOUR_STATE_BUCKET>"
+
+# Your name or LDAP — applied as the `owner` label to every resource.
+owner = "<your-name>"
+
+# ── Lab-01 specific ───────────────────────────────────────────────────────────
+# URL of the Cloud Function flag endpoint in Project B.
+# Leave as default until Project B is deployed; then replace with the real URL.
+# cf_function_url = "https://placeholder.cloudfunctions.net/flag"
