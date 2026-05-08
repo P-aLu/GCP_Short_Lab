@@ -39,6 +39,18 @@ if [[ -z "$STATE_BUCKET" ]]; then
   exit 1
 fi
 
+# ── Build -var-file chain ──────────────────────────────────────────────────────
+# Root tfvars holds common variables (region, state_bucket, owner).
+# A per-lab terraform.tfvars in the lab directory overrides or extends those —
+# used when a lab targets a different GCP project or needs lab-specific inputs
+# (e.g. cross-lab SA emails). Create it from the lab's terraform.tfvars.example.
+VAR_FILE_ARGS=(-var-file="${TFVARS}")
+LAB_TFVARS="${LAB_DIR}/terraform.tfvars"
+if [[ -f "$LAB_TFVARS" ]]; then
+  VAR_FILE_ARGS+=(-var-file="${LAB_TFVARS}")
+  echo "==> Using per-lab tfvars: ${LAB_TFVARS}"
+fi
+
 # ── Run ────────────────────────────────────────────────────────────────────────
 echo "==> Lab   : ${LAB}"
 echo "==> Action: ${ACTION}"
@@ -58,15 +70,15 @@ case "$ACTION" in
     ;;
   plan)
     terraform validate
-    terraform plan -var-file="${TFVARS}"
+    terraform plan "${VAR_FILE_ARGS[@]}"
     ;;
   apply)
     terraform validate
-    terraform plan  -var-file="${TFVARS}"
-    terraform apply -var-file="${TFVARS}" -auto-approve
+    terraform plan  "${VAR_FILE_ARGS[@]}"
+    terraform apply "${VAR_FILE_ARGS[@]}" -auto-approve
     ;;
   destroy)
-    terraform destroy -var-file="${TFVARS}" -auto-approve
+    terraform destroy "${VAR_FILE_ARGS[@]}" -auto-approve
     ;;
   *)
     echo "ERROR: Unknown action '${ACTION}'. Must be one of: apply, destroy, plan, validate"
