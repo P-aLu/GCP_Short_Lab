@@ -1,0 +1,22 @@
+# Per-lab tfvars for lab-01-gsc-privesc-b (Cloud Function — webapp project).
+# Copy to terraform.tfvars and fill in before running lab.sh.
+# Loaded in addition to the root terraform.tfvars (region / state_bucket / owner come from there).
+
+# GCP project ID for the webapp project.
+# Naming convention: [deployment_uid]-webapp-palu
+# This is the SAME project used by lab-02-kms-privesc.
+project_id = "<DEPLOYMENT_UID>-webapp-palu"
+
+# ── Shared UID (from lab-01-gsc-privesc) ─────────────────────────────────────
+# After applying lab-01-gsc-privesc:
+#   cd labs/lab-01-gsc-privesc && terraform output deployment_uid
+deployment_uid = "<from lab-01-gsc-privesc output: deployment_uid>"
+
+# ── Credentials (from lab-01-gsc-privesc outputs) ────────────────────────────
+#   terraform output cf_api_user
+#   terraform output -raw cf_api_password
+cf_api_user     = "<from lab-01-gsc-privesc output: cf_api_user>"
+cf_api_password = "<from lab-01-gsc-privesc output: cf_api_password>"
+
+# Optional: override the default flag string.
+# flag = "FLAG{1ab01_tfst4t3_l4t3r4l_m0v3m3nt_pwn3d}"

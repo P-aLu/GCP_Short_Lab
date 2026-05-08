@@ -1,0 +1,17 @@
+# Per-lab tfvars for lab-02-kms-privesc (KMS / webapp project).
+# Copy to terraform.tfvars and fill in before running lab.sh.
+# Loaded in addition to the root terraform.tfvars (region / state_bucket / owner come from there).
+
+# GCP project ID for the webapp project.
+# Naming convention: [deployment_uid]-webapp-palu
+# This is the SAME project used by lab-01-gsc-privesc-b.
+project_id = "<DEPLOYMENT_UID>-webapp-palu"
+
+# ── Shared UID (from lab-01-gsc-privesc) ─────────────────────────────────────
+# After applying lab-01-gsc-privesc:
+#   cd labs/lab-01-gsc-privesc && terraform output deployment_uid
+deployment_uid = "<from lab-01-gsc-privesc output: deployment_uid>"
+
+# ── Cross-lab input (from lab-01-gsc-privesc-b) ───────────────────────────────
+#   cd labs/lab-01-gsc-privesc-b && terraform output cf_runtime_sa_email
+cf_runtime_sa_email = "<from lab-01-gsc-privesc-b output: cf_runtime_sa_email>"
