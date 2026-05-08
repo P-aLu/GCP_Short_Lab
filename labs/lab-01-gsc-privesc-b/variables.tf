@@ -1,5 +1,10 @@
 variable "project_id" {
-  description = "GCP project ID for Project B (the Cloud Function / flag project)"
+  description = "GCP project ID for the webapp project ([uid]-webapp-palu) — shared with lab-02-kms-privesc"
+  type        = string
+}
+
+variable "deployment_uid" {
+  description = "Shared deployment UID — copy from lab-01-gsc-privesc output deployment_uid"
   type        = string
 }
 

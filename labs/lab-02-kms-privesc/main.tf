@@ -1,6 +1,6 @@
 # ── Locals ────────────────────────────────────────────────────────────────────
 locals {
-  uid = random_id.deployment.hex
+  uid = var.deployment_uid
 
   # Resource names follow the scenario description exactly so learners can
   # cross-reference the README during the exercise.
@@ -15,11 +15,6 @@ locals {
     lab   = "lab-02-kms-privesc"
     owner = var.owner
   }
-}
-
-# ── Random values ─────────────────────────────────────────────────────────────
-resource "random_id" "deployment" {
-  byte_length = 4
 }
 
 # ── Required APIs ─────────────────────────────────────────────────────────────

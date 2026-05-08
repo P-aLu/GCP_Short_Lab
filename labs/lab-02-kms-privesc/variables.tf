@@ -1,5 +1,10 @@
 variable "project_id" {
-  description = "GCP project ID for the webapp project (this is the $DEPLOYMENT_UID-webapp-palu project)"
+  description = "GCP project ID for the webapp project ([uid]-webapp-palu) — same project as lab-01-gsc-privesc-b"
+  type        = string
+}
+
+variable "deployment_uid" {
+  description = "Shared deployment UID — copy from lab-01-gsc-privesc output deployment_uid"
   type        = string
 }
 

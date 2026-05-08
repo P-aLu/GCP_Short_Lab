@@ -1,6 +1,6 @@
 # ── Locals ────────────────────────────────────────────────────────────────────
 locals {
-  uid           = random_id.deployment.hex
+  uid           = var.deployment_uid
   function_name = "${local.uid}-flag-api"
   source_bucket = "${local.uid}-cf-source"
 
@@ -9,11 +9,6 @@ locals {
     lab   = "lab-01-gsc-privesc-b"
     owner = var.owner
   }
-}
-
-# ── Random values ─────────────────────────────────────────────────────────────
-resource "random_id" "deployment" {
-  byte_length = 4
 }
 
 # ── Required APIs ─────────────────────────────────────────────────────────────
