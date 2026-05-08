@@ -73,7 +73,7 @@ Project A  (var.project_id)
 | 3 — Lateral Movement | `sql_compute` instance + `tls_private_key.ssh` (from tfstate) |
 | 4 — DB Access | `sql_database_instance.main` (authorised network = compute static IP) |
 | 5 — Credential Harvest | `Web APIs` table row (inserted by startup script) |
-| 6 — Final Flag | Cloud Function in Project B (Project B not yet built) |
+| 6 — Final Flag | Cloud Function in Project B (`lab-01-gsc-privesc-b`) |
 
 ### Key design decisions
 
@@ -113,14 +113,83 @@ Project B  (separate var.project_id)
 
 ### Deployment order
 
+Handled automatically by `deploy-chain.sh`. The dependency graph is:
+
 ```
-1. labs/lab-01-gsc-privesc   (apply)  → outputs: cf_api_user, cf_api_password
-2. labs/lab-01-gsc-privesc-b (apply)  → inputs: cf_api_user, cf_api_password
-                                        outputs: function_url, cf_runtime_sa_email
-3. Set cf_function_url = <function_url> in terraform.tfvars
-4. labs/lab-01-gsc-privesc   (apply)  → re-apply to seed correct URL into Web APIs table
-5. labs/lab-02-kms-privesc   (apply)  → inputs: cf_runtime_sa_email (grants kms_reader)
+lab-01-gsc-privesc (apply)
+  └─ outputs: deployment_uid, cf_api_user, cf_api_password
+       │
+       ▼
+lab-01-gsc-privesc-b (apply) — project: [uid]-webapp-palu
+  └─ outputs: function_url, cf_runtime_sa_email
+       │
+       ├─▶ lab-01-gsc-privesc (re-apply) — seeds function_url into Web APIs table
+       │
+       └─▶ lab-02-kms-privesc (apply) — project: [uid]-webapp-palu
 ```
+
+All cross-lab values are passed as `-var` flags by `deploy-chain.sh` — no per-lab `terraform.tfvars` editing is required.
+
+---
+
+## Lab 02 — KMS Privilege Escalation (`lab-02-kms-privesc`)
+
+### Webapp project resources
+
+```
+Project C  (var.project_id = $DEPLOYMENT_UID-webapp-palu)
+│
+├── google_project_iam_custom_role.kms_reader        — list secrets, list+use KMS, get IAM policy
+│   └── google_project_iam_member.cf_kms_reader      — granted to CF runtime SA from lab-01-b
+│
+├── google_service_account.webapp_owner              — Stage 5 target SA
+│   ├── google_service_account_key.webapp_owner      — key encrypted + stored in Secret Manager
+│   ├── roles/bigquery.dataViewer (project)
+│   └── roles/bigquery.jobUser (project)
+│
+├── google_kms_key_ring.lab                          — [uid]-webapp
+│   └── google_kms_crypto_key.webapp                 — [uid]-webapp-kms (ENCRYPT_DECRYPT)
+│
+├── google_kms_secret_ciphertext.webapp_owner_key    — KMS-encrypted webapp_owner SA key
+│
+├── google_secret_manager_secret.webapp_config       — [uid]-webapp_config
+│   └── version: KMS ciphertext of webapp_owner SA key
+│
+├── google_service_account.projects_scanner          — Stage 7 credential (lab-03 pivot)
+│   ├── google_service_account_key.projects_scanner  — key stored in BigQuery
+│   └── roles/browser (project)
+│
+├── google_bigquery_dataset.lab                      — [uid]_data
+│   ├── google_bigquery_table.metrics                — noise: metrics rows
+│   ├── google_bigquery_table.events                 — noise: deployment events
+│   └── google_bigquery_table.secret_bigquery        — hidden: projects_scanner SA key JSON
+│
+└── google_storage_bucket.bq_staging                 — [uid]-bq-staging (NDJSON data for load jobs)
+```
+
+### Kill chain mapping
+
+| Stage | Resource(s) involved |
+|-------|---------------------|
+| 0 — Deploy | All of the above |
+| 1 — RCE | lab-01-b Cloud Function `?cmd=` (no new resource) |
+| 2 — Metadata Token | GCP metadata server inside CF runtime environment |
+| 3 — Project Pivot | `cf_kms_reader` IAM binding + `kms_reader` custom role |
+| 4 — KMS Decrypt | `webapp_config` secret + `webapp-kms` key |
+| 5 — SA Key Harvest | `webapp_owner_key` ciphertext → decrypted SA key JSON |
+| 6 — BigQuery Access | `webapp_owner` SA → `secret_bigquery` table |
+| 7 — Final Pivot | `secret_key` row → `projects_scanner` SA → admin project (lab-03) |
+
+### Key design decisions
+
+- **KMS-encrypted secret, not plaintext** — the `webapp_config` secret stores the KMS ciphertext of the `webapp_owner` SA key. The learner needs both `secretmanager.versions.access` AND `cloudkms.cryptoKeyVersions.useToDecrypt` (both in `kms_reader`) to extract the SA key — two-step discovery rather than one.
+- **SA key JSON in BigQuery as a STRING** — the `secret_bigquery` table has a single `secret_key` STRING column. This mirrors real-world incidents where credentials are accidentally written to data pipelines. The learner must recognise it, copy it, and use it as a credentials file.
+- **NDJSON load via GCS staging** — inserting a PEM private key (multi-line, special chars) via a SQL INSERT would require complex escaping. A GCS load job handles it cleanly and is also realistic.
+- **`projects_scanner` starts with only `roles/browser`** — lab-03 grants it access to the admin project. This defers the cross-project IAM binding until the admin project exists.
+
+### Deployment order
+
+Handled by `deploy-chain.sh` as step 4. Inputs (`project_id`, `deployment_uid`, `cf_runtime_sa_email`) are passed automatically. The `projects_scanner_sa_email` output is reserved for lab-03.
 
 ---
 

@@ -15,7 +15,7 @@
 |---|--------|-------|------|--------|-------|
 | 01-A | `lab-01-gsc-privesc` | GCP Privilege Escalation via Stolen SA Key — Project A | Security / CTF | `[~]` | Terraform complete; awaiting end-to-end test |
 | 01-B | `lab-01-gsc-privesc-b` | GCP Privilege Escalation via Stolen SA Key — Project B (Cloud Function) | Security / CTF | `[~]` | Terraform complete; bridge to lab-02 |
-| 02 | `lab-02-kms-privesc` | KMS Privilege Escalation via Metadata Token | Security / CTF | `[~]` | README scenario written; Terraform not yet started |
+| 02 | `lab-02-kms-privesc` | KMS Privilege Escalation via Metadata Token | Security / CTF | `[~]` | Terraform complete; awaiting end-to-end test |
 
 ---
 
@@ -37,7 +37,7 @@ The intended attack path for this lab:
 
 The intended attack path for this lab (continues from lab-01 Stage 6):
 
-1. `[ ]` **Stage 0 — Deployment** — Terraform provisions the webapp project (custom role, KMS key, Secret Manager, BigQuery)
+1. `[~]` **Stage 0 — Deployment** — Terraform provisions the webapp project (custom role, KMS key, Secret Manager, BigQuery)
 2. `[ ]` **Stage 1 — RCE** — Learner exploits `?cmd=` on the lab-01 Cloud Function to execute shell commands
 3. `[ ]` **Stage 2 — Metadata Token Steal** — Learner curls the GCP metadata server from within the function to get the runtime SA token
 4. `[ ]` **Stage 3 — Project Pivot** — Token gives access to `[uid]-webapp-palu` project; learner lists IAM and discovers custom role `kms_reader`
