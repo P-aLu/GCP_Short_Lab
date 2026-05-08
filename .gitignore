@@ -1,0 +1,29 @@
+# ── Terraform ─────────────────────────────────────────────────────────────────
+**/.terraform/
+**/.terraform.lock.hcl
+*.tfstate
+*.tfstate.backup
+*.tfplan
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# ── Sensitive variables — never commit ────────────────────────────────────────
+terraform.tfvars
+**/terraform.tfvars
+
+# ── SA keys and credentials ───────────────────────────────────────────────────
+*.json
+!terraform.tfvars.example
+!**/terraform.tfvars.example
+
+# ── OS / editor ───────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/
