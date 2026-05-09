@@ -36,6 +36,7 @@ PROJECT_A=$(_read_tfvar project_id)
 WEBAPP_PROJECT=$(_read_tfvar webapp_project_id)
 ADMIN_PROJECT=$(_read_tfvar admin_project_id)
 STATE_BUCKET=$(_read_tfvar state_bucket)
+PRESET_UID=$(_read_tfvar deployment_uid)   # optional — set by setup.sh
 
 [[ -n "$PROJECT_A" ]]      || { echo "ERROR: project_id not set in terraform.tfvars";        exit 1; }
 [[ -n "$WEBAPP_PROJECT" ]] || { echo "ERROR: webapp_project_id not set in terraform.tfvars"; exit 1; }
@@ -86,7 +87,13 @@ if [[ "$ACTION" == "apply" ]]; then
     -backend-config="prefix=lab-01-gsc-privesc" \
     -input=false -upgrade=false > /dev/null
   terraform validate
-  terraform apply -var-file="${TFVARS}" -auto-approve
+  # Pass pre-set UID from setup.sh when available so Terraform uses the same
+  # value that was used to name the GCP projects.
+  if [[ -n "${PRESET_UID:-}" ]]; then
+    terraform apply -var-file="${TFVARS}" -var "deployment_uid=${PRESET_UID}" -auto-approve
+  else
+    terraform apply -var-file="${TFVARS}" -auto-approve
+  fi
   UID=$(terraform output -raw deployment_uid)
   CF_API_USER=$(terraform output -raw cf_api_user)
   CF_API_PASSWORD=$(terraform output -raw cf_api_password)
