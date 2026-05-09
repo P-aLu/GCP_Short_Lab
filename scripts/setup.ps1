@@ -99,7 +99,7 @@ function Create-Project([string]$id, [string]$name) {
         return
     }
     Write-Host "  Creating $id..."
-    $gcloudArgs = @("--name=$name", "--project=$id")
+    $gcloudArgs = @($id, "--name=$name")
     if ($FolderId)  { $gcloudArgs += "--folder=$FolderId" }
     elseif ($OrgId) { $gcloudArgs += "--organization=$OrgId" }
     gcloud projects create @gcloudArgs
@@ -120,9 +120,9 @@ function Enable-Apis([string]$id, [string[]]$apis) {
 
 # ── Step 1: Create projects ───────────────────────────────────────────────────
 Banner "1/4  Create GCP projects"
-Create-Project $ProjectA "Lab Deployments ($UidHex)"
-Create-Project $ProjectB "Lab Webapp ($UidHex)"
-Create-Project $ProjectC "Lab Admin ($UidHex)"
+Create-Project $ProjectA "Lab Deployments $UidHex"
+Create-Project $ProjectB "Lab Webapp $UidHex"
+Create-Project $ProjectC "Lab Admin $UidHex"
 Write-Host ""
 
 # ── Step 2: Link billing ──────────────────────────────────────────────────────

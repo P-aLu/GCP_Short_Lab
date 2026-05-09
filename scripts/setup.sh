@@ -105,7 +105,7 @@ _create_project() {
     return
   fi
   echo "  Creating ${id}..."
-  local args=(--name="$name" --project="$id")
+  local args=("$id" --name="$name")
   if [[ -n "$FOLDER_ID" ]];   then args+=(--folder="$FOLDER_ID")
   elif [[ -n "$ORG_ID" ]];    then args+=(--organization="$ORG_ID")
   fi
@@ -127,9 +127,9 @@ _enable_apis() {
 
 # ── Step 1: Create projects ───────────────────────────────────────────────────
 _banner "1/4  Create GCP projects"
-_create_project "$PROJECT_A" "Lab Deployments (${UID_HEX})"
-_create_project "$PROJECT_B" "Lab Webapp (${UID_HEX})"
-_create_project "$PROJECT_C" "Lab Admin (${UID_HEX})"
+_create_project "$PROJECT_A" "Lab Deployments ${UID_HEX}"
+_create_project "$PROJECT_B" "Lab Webapp ${UID_HEX}"
+_create_project "$PROJECT_C" "Lab Admin ${UID_HEX}"
 echo ""
 
 # ── Step 2: Link billing ──────────────────────────────────────────────────────
