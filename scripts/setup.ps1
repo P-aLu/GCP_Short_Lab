@@ -88,8 +88,13 @@ function Banner([string]$msg) {
 }
 
 function Create-Project([string]$id, [string]$name) {
-    $exists = gcloud projects describe $id 2>$null
-    if ($LASTEXITCODE -eq 0) {
+    $projectExists = $false
+    try {
+        $null = gcloud projects describe $id 2>&1
+        $projectExists = ($LASTEXITCODE -eq 0)
+    } catch { $projectExists = $false }
+
+    if ($projectExists) {
         Write-Host "  [skip] $id already exists."
         return
     }
@@ -165,8 +170,13 @@ Write-Host ""
 
 # ── Step 4: Create Terraform state bucket ────────────────────────────────────
 Banner "4/4  Create Terraform state bucket"
-$bucketExists = gcloud storage buckets describe "gs://$StateBucket" 2>$null
-if ($LASTEXITCODE -eq 0) {
+$bucketExists = $false
+try {
+    $null = gcloud storage buckets describe "gs://$StateBucket" 2>&1
+    $bucketExists = ($LASTEXITCODE -eq 0)
+} catch { $bucketExists = $false }
+
+if ($bucketExists) {
     Write-Host "  [skip] gs://$StateBucket already exists."
 } else {
     Write-Host "  Creating gs://$StateBucket in $ProjectA..."

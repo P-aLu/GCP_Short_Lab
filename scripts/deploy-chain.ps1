@@ -63,8 +63,11 @@ function TF-Output([string]$lab, [string]$key) {
     TF-Init $lab
     $labDir = Join-Path $LabsDir $lab
     Push-Location $labDir
-    $val = terraform output -raw $key 2>$null
-    if ($LASTEXITCODE -ne 0) { $val = "" }
+    $val = ""
+    try {
+        $val = terraform output -raw $key 2>&1
+        if ($LASTEXITCODE -ne 0) { $val = "" }
+    } catch { $val = "" }
     Pop-Location
     return $val
 }
@@ -168,9 +171,10 @@ if ($Action -eq "apply") {
     # Post-apply: disable Secret Manager API (Stage 4 puzzle)
     Write-Host ""
     Write-Host "    Disabling secretmanager.googleapis.com in admin project (Stage 4 puzzle)..."
-    gcloud services disable secretmanager.googleapis.com `
-        --project=$AdminProject --quiet
-    # non-fatal — ignore exit code
+    try {
+        gcloud services disable secretmanager.googleapis.com `
+            --project=$AdminProject --quiet 2>&1 | Out-Null
+    } catch { } # non-fatal
 
     # ── Auto-destroy timer ────────────────────────────────────────────────────
     # Cancel any previous timer.
