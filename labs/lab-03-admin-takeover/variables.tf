@@ -34,12 +34,16 @@ variable "enable_deny_policies" {
   description = <<-EOT
     Set to true only when the admin project belongs to a GCP Organization.
     IAM Deny Policies (google_iam_deny_policy) are unavailable on standalone
-    projects created under a personal Gmail account — the /v2beta/policies/
-    endpoint returns 404 in that case.
+    projects — the /v2beta/policies/ endpoint returns 404 in that case.
 
-    When false: the lab deploys without the two Deny Policy constraints.
-    Stage 3 (block API enable) and Stage 5 (flag guard) lose their enforcement,
-    but the rest of the kill chain remains intact.
+    Stage 3 (API enable block) is enforced structurally: admin-owner holds
+    roles/resourcemanager.projectIamAdmin which has no serviceusage.services.enable,
+    so it cannot enable APIs regardless of this flag.
+
+    This flag only controls Stage 5 (flag_secret_guard): when true, a deny policy
+    ensures only the admin-owner SA token can read the flag even after a student
+    grants their Gmail account roles/owner. When false, a Gmail project owner
+    can also read the flag — the kill chain still works but Stage 5 is unguarded.
 
     To check: gcloud projects describe <project> --format="value(parent.type)"
     Returns "organization" if Deny Policies are supported.

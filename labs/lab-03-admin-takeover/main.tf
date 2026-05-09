@@ -69,35 +69,14 @@ resource "google_service_account" "admin_owner" {
   depends_on   = [time_sleep.wait_for_apis]
 }
 
-resource "google_project_iam_member" "admin_owner_project_owner" {
+# roles/resourcemanager.projectIamAdmin lets admin-owner call setIamPolicy
+# (so students can grant their Gmail account roles/owner) but deliberately
+# excludes serviceusage.services.enable — admin-owner cannot enable APIs.
+# Students must grant their Gmail account and use the GCP Console (Stage 3→4).
+resource "google_project_iam_member" "admin_owner_iam_admin" {
   project = var.project_id
-  role    = "roles/owner"
+  role    = "roles/resourcemanager.projectIamAdmin"
   member  = "serviceAccount:${google_service_account.admin_owner.email}"
-}
-
-# ── IAM Deny Policy: block admin-owner from enabling APIs ─────────────────────
-# admin-owner carries roles/owner but the Deny Policy overrides it for API
-# management. Students must grant their personal Google account project owner
-# via setIamPolicy and use the GCP Console to re-enable Secret Manager API
-# (Stage 3 → Stage 4 transition).
-resource "google_iam_deny_policy" "block_api_enable" {
-  count    = var.enable_deny_policies ? 1 : 0
-  provider = google-beta
-  parent   = "cloudresourcemanager.googleapis.com/projects/${var.project_id}"
-  name     = "${local.uid}-block-api-enable"
-
-  rules {
-    description = "admin-owner SA cannot enable or disable GCP APIs programmatically"
-    deny_rule {
-      denied_principals  = ["serviceAccount:${google_service_account.admin_owner.email}"]
-      denied_permissions = ["serviceusage.googleapis.com/services.enable"]
-    }
-  }
-
-  depends_on = [
-    time_sleep.wait_for_apis,
-    google_project_iam_member.admin_owner_project_owner,
-  ]
 }
 
 # ── IAM Deny Policy: restrict Secret Manager access to admin-owner only ───────
@@ -122,6 +101,7 @@ resource "google_iam_deny_policy" "flag_secret_guard" {
 
   depends_on = [
     time_sleep.wait_for_apis,
+    google_project_iam_member.admin_owner_iam_admin,
     google_secret_manager_secret_version.flag,
   ]
 }
