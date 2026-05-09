@@ -46,7 +46,7 @@ if (-not $StateBucket)   { Write-Error "state_bucket not set in terraform.tfvars
 # ── Helpers ───────────────────────────────────────────────────────────────────
 function Banner([string]$msg) {
     Write-Host ""
-    Write-Host "── $msg ─────────────────────────────────────────────"
+    Write-Host "-- $msg --------------------------------------------------"
 }
 
 function TF-Init([string]$lab) {

@@ -84,7 +84,7 @@ if (Test-Path $TfVars) {
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 function Banner([string]$msg) {
-    Write-Host "── $msg ─────────────────────────────────────────────"
+    Write-Host "-- $msg --------------------------------------------------"
 }
 
 function Create-Project([string]$id, [string]$name) {
@@ -94,10 +94,10 @@ function Create-Project([string]$id, [string]$name) {
         return
     }
     Write-Host "  Creating $id..."
-    $args = @("--name=$name", "--project=$id")
-    if ($FolderId)  { $args += "--folder=$FolderId" }
-    elseif ($OrgId) { $args += "--organization=$OrgId" }
-    gcloud projects create @args
+    $gcloudArgs = @("--name=$name", "--project=$id")
+    if ($FolderId)  { $gcloudArgs += "--folder=$FolderId" }
+    elseif ($OrgId) { $gcloudArgs += "--organization=$OrgId" }
+    gcloud projects create @gcloudArgs
     if ($LASTEXITCODE -ne 0) { throw "Failed to create project $id" }
 }
 
