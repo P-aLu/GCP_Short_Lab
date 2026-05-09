@@ -1,6 +1,6 @@
 # ── Locals ────────────────────────────────────────────────────────────────────
 locals {
-  uid          = random_id.deployment.hex
+  uid          = var.deployment_uid != "" ? var.deployment_uid : random_id.deployment.hex
   bucket_name  = "${local.uid}-deployments"
   compute_name = "${local.uid}-deployments-sql-compute"
   sql_name     = "${local.uid}-deployments-sql"

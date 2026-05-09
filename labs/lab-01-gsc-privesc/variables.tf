@@ -30,3 +30,9 @@ variable "cf_function_url" {
   type        = string
   default     = "https://placeholder.cloudfunctions.net/flag"
 }
+
+variable "deployment_uid" {
+  description = "Pre-set deployment UID from setup.sh. When non-empty, overrides random_id.deployment so project names are fixed before Terraform runs."
+  type        = string
+  default     = ""
+}
