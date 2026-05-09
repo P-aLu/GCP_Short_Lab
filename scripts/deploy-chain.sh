@@ -173,6 +173,25 @@ if [[ "$ACTION" == "apply" ]]; then
     --project="${ADMIN_PROJECT}" \
     --quiet || true
 
+  # ── Auto-destroy timer ────────────────────────────────────────────────────────
+  # Spawn a detached background process that destroys the chain after 2 hours.
+  # Uses nohup + disown so the timer survives terminal closure.
+  TIMER_PID_FILE="${REPO_ROOT}/.autodestroy.pid"
+  TIMER_LOG_FILE="${REPO_ROOT}/.autodestroy.log"
+
+  # Cancel any previous timer that may still be running.
+  if [[ -f "$TIMER_PID_FILE" ]]; then
+    OLD_PID=$(cat "$TIMER_PID_FILE")
+    kill "$OLD_PID" 2>/dev/null || true
+    rm -f "$TIMER_PID_FILE"
+  fi
+
+  nohup bash -c "sleep 7200 && cd '${REPO_ROOT}' && ./scripts/deploy-chain.sh destroy" \
+    > "$TIMER_LOG_FILE" 2>&1 &
+  TIMER_PID=$!
+  disown "$TIMER_PID"
+  echo "$TIMER_PID" > "$TIMER_PID_FILE"
+
   echo ""
   echo "════════════════════════════════════════════════════════════════════"
   echo "  Chain deployed successfully."
@@ -183,12 +202,28 @@ if [[ "$ACTION" == "apply" ]]; then
   echo ""
   echo "  Generate the learner's starting SA key:"
   echo "  ${SA_KEY_CMD}"
+  echo ""
+  echo "  ⚠  Auto-destroy scheduled in 2 hours (PID ${TIMER_PID})"
+  echo "     To cancel : kill ${TIMER_PID} && rm ${TIMER_PID_FILE}"
+  echo "     To destroy now : ./scripts/deploy-chain.sh destroy"
+  echo "     Timer log : ${TIMER_LOG_FILE}"
   echo "════════════════════════════════════════════════════════════════════"
 
 # ── DESTROY ───────────────────────────────────────────────────────────────────
 elif [[ "$ACTION" == "destroy" ]]; then
 
   echo "==> deploy-chain: destroy (reverse order)"
+
+  # Cancel the auto-destroy timer if it is still running.
+  TIMER_PID_FILE="${REPO_ROOT}/.autodestroy.pid"
+  if [[ -f "$TIMER_PID_FILE" ]]; then
+    OLD_PID=$(cat "$TIMER_PID_FILE")
+    if kill -0 "$OLD_PID" 2>/dev/null; then
+      echo "    Cancelling auto-destroy timer (PID ${OLD_PID})..."
+      kill "$OLD_PID" 2>/dev/null || true
+    fi
+    rm -f "$TIMER_PID_FILE"
+  fi
   echo ""
 
   # Collect outputs from existing state BEFORE any destroy call, so values
