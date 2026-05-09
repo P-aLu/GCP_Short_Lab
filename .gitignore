@@ -20,6 +20,10 @@ terraform.tfvars
 !terraform.tfvars.example
 !**/terraform.tfvars.example
 
+# ── Auto-destroy timer state ──────────────────────────────────────────────────
+.autodestroy.pid
+.autodestroy.log
+
 # ── OS / editor ───────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
