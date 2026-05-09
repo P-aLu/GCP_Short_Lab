@@ -14,6 +14,9 @@ project_id = "<DEPLOYMENTS_PROJECT_ID>"
 # Project B — webapp project (lab-01-gsc-privesc-b + lab-02-kms-privesc)
 webapp_project_id = "<WEBAPP_PROJECT_ID>"
 
+# Project C — admin project (lab-03-admin-takeover)
+admin_project_id = "<ADMIN_PROJECT_ID>"
+
 # ── Shared settings ───────────────────────────────────────────────────────────
 # GCP region for all resources.
 region = "europe-west1"
