@@ -16,6 +16,7 @@
 | 01-A | `lab-01-gsc-privesc` | GCP Privilege Escalation via Stolen SA Key — Project A | Security / CTF | `[~]` | Terraform complete; awaiting end-to-end test |
 | 01-B | `lab-01-gsc-privesc-b` | GCP Privilege Escalation via Stolen SA Key — Project B (Cloud Function) | Security / CTF | `[~]` | Terraform complete; bridge to lab-02 |
 | 02 | `lab-02-kms-privesc` | KMS Privilege Escalation via Metadata Token | Security / CTF | `[~]` | Terraform complete; awaiting end-to-end test |
+| 03 | `lab-03-admin-takeover` | Admin Project Takeover via IAM Abuse | Security / CTF | `[~]` | Terraform complete; awaiting end-to-end test |
 
 ---
 
@@ -48,8 +49,23 @@ The intended attack path for this lab (continues from lab-01 Stage 6):
 
 ---
 
+---
+
+## Kill Chain — lab-03-admin-takeover
+
+The intended attack path for this lab (continues from lab-02 Stage 7):
+
+1. `[~]` **Stage 0 — Deployment** — Terraform provisions the admin project (`[uid]-admin-palu`): credentials bucket, 10 SA keys (1 valid), admin-owner SA, IAM Deny Policies, flag secret. Secret Manager API disabled post-deploy.
+2. `[ ]` **Stage 1 — Bucket IAM Abuse** — Learner has `storage.buckets.setIamPolicy` via `projects_scanner` but cannot read objects. Learner grants themselves `objectViewer`, reads `service-accounts.json` containing 10 SA keys.
+3. `[ ]` **Stage 2 — Token Generation** — Learner activates each credential; only `token-generator` can list SAs and generate tokens. Learner generates an access token for `admin-owner` SA.
+4. `[ ]` **Stage 3 — IAM Binding** — As `admin-owner` (project owner), learner cannot enable APIs (IAM Deny Policy blocks `serviceusage.services.enable`). Learner uses `setIamPolicy` to grant personal Gmail account `roles/owner`.
+5. `[ ]` **Stage 4 — Enable Secret Manager API** — Learner logs into GCP Console with Gmail account and enables `secretmanager.googleapis.com`.
+6. `[ ]` **Stage 5 — Final Flag** — Learner uses `admin-owner` SA token to read secret `[uid]-admin-flag`. Personal Gmail owner account is denied by a second IAM Deny Policy (`flag-secret-guard`). Only `admin-owner` SA token succeeds.
+
+---
+
 ## Planned Labs (not started)
 
 | # | Proposed Title | Type | Notes |
 |---|---------------|------|-------|
-| 03 | Admin project takeover via BigQuery credential | Security / CTF | Entry point: GCP auth from lab-02 Stage 7 |
+| 04 | TBD | — | — |

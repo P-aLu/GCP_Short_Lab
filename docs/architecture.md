@@ -189,7 +189,83 @@ Project C  (var.project_id = $DEPLOYMENT_UID-webapp-palu)
 
 ### Deployment order
 
-Handled by `deploy-chain.sh` as step 4. Inputs (`project_id`, `deployment_uid`, `cf_runtime_sa_email`) are passed automatically. The `projects_scanner_sa_email` output is reserved for lab-03.
+Handled by `deploy-chain.sh` as step 4. Inputs (`project_id`, `deployment_uid`, `cf_runtime_sa_email`) are passed automatically. The `projects_scanner_sa_email` output is wired into lab-03.
+
+---
+
+## Lab 03 — Admin Project Takeover (`lab-03-admin-takeover`)
+
+### Admin project resources
+
+```
+Project C  (var.project_id = $DEPLOYMENT_UID-admin-palu)
+│
+├── google_project_iam_custom_role.bucket_policy_manager  — list + setIAMPolicy on GCS (no object read)
+│   └── google_project_iam_member.scanner_bucket_policy   — granted to projects_scanner SA from lab-02
+│
+├── google_service_account.admin_owner                    — Stage 2 target SA
+│   └── roles/owner (project)
+│
+├── google_iam_deny_policy.block_api_enable               — denies admin-owner from serviceusage.services.enable
+├── google_iam_deny_policy.flag_secret_guard              — denies all except admin-owner from SM versions.access
+│
+├── google_service_account.token_generator                — valid credential in the bucket (position 5 of 10)
+│   ├── google_service_account_key.token_generator        — key stored in credentials bucket
+│   ├── roles/iam.serviceAccountTokenCreator on admin-owner SA
+│   └── custom role sa_lister on project
+│
+├── google_service_account.decoy[00..08]                  — 9 decoy SAs with real keys but no permissions
+│   └── google_service_account_key.decoy[00..08]
+│
+├── google_storage_bucket.admin_creds                     — [uid]-admin-credentials
+│   └── service-accounts.json                             — 10 SA keys (1 valid at position 5)
+│
+└── google_secret_manager_secret.flag                     — [uid]-admin-flag (API disabled post-deploy)
+    └── version: flag string
+```
+
+### Kill chain mapping
+
+| Stage | Resource(s) involved |
+|-------|---------------------|
+| 0 — Deploy | All of the above; `gcloud services disable secretmanager` run post-apply |
+| 1 — Bucket IAM Abuse | `bucket_policy_manager` role → student grants self `objectViewer` → reads `service-accounts.json` |
+| 2 — Token Generation | `token_generator` SA key → `iam.serviceAccounts.list` → `generateAccessToken` on `admin_owner` |
+| 3 — IAM Binding | `admin_owner` token → `setIamPolicy` → grants student Gmail `roles/owner` |
+| 4 — Enable SM API | Student logs into Console with Gmail account → enables `secretmanager.googleapis.com` |
+| 5 — Final Flag | `admin_owner` token + SM API enabled → `secretmanager.versions.access` → flag |
+
+### Key design decisions
+
+- **IAM Deny Policies (google-beta)** — two deny policies enforce the two hard constraints: (1) `admin-owner` cannot enable APIs programmatically despite holding `roles/owner`; (2) no identity other than `admin-owner` SA can read the flag secret, even if granted `roles/owner` via `setIamPolicy`. Deny overrides Allow in GCP IAM evaluation.
+- **`depends_on` ordering for destroy** — `flag_secret_guard` deny policy `depends_on` the secret version. Terraform destroy reverses this: deny policy is removed first, then the secret version is accessible for deletion.
+- **`lifecycle { ignore_changes = [secret_data] }` on secret version** — after `flag_secret_guard` is applied, even the Terraform operator is denied `versions.access`. This prevents `terraform plan` from erroring on refresh. The secret data is set once at creation and never re-read by Terraform.
+- **Secret Manager API disabled post-deploy** — `deploy-chain.sh` calls `gcloud services disable secretmanager.googleapis.com` after applying. This creates the Stage 3→4 puzzle: students must discover they can use `setIamPolicy` to grant personal access, then use the GCP Console to re-enable the API.
+- **10 real SA keys, 9 decoys** — all keys authenticate successfully; decoy SAs have no permissions. Students must try each credential against `iam.serviceAccounts.list` to find the usable one. This mirrors real-world credential dumps.
+
+### Deployment order
+
+Handled by `deploy-chain.sh` as step 5. Inputs: `project_id` (admin project), `deployment_uid`, `projects_scanner_sa_email` (from lab-02 step 4 output).
+
+Full dependency graph:
+
+```
+lab-01-gsc-privesc (apply)
+  └─ outputs: deployment_uid, cf_api_user, cf_api_password
+       │
+       ▼
+lab-01-gsc-privesc-b (apply) — project: [uid]-webapp-palu
+  └─ outputs: function_url, cf_runtime_sa_email
+       │
+       ├─▶ lab-01-gsc-privesc (re-apply) — seeds function_url into Web APIs table
+       │
+       └─▶ lab-02-kms-privesc (apply) — project: [uid]-webapp-palu
+             └─ output: projects_scanner_sa_email
+                  │
+                  ▼
+             lab-03-admin-takeover (apply) — project: [uid]-admin-palu
+               └─ post-apply: gcloud services disable secretmanager
+```
 
 ---
 
