@@ -47,10 +47,11 @@ if (-not $Owner) {
 }
 
 # ── Generate UID ───────────────────────────────────────────────────────────────
-# 4 random bytes → 8 lowercase hex chars, matching Terraform random_id(byte_length=4)
+# 4 random bytes → 8 lowercase hex chars. GCP project IDs must start with a
+# letter, so we force the first char to "a".
 $rngBytes = [byte[]]::new(4)
 [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($rngBytes)
-$UidHex = ($rngBytes | ForEach-Object { $_.ToString("x2") }) -join ""
+$UidHex = "a" + (($rngBytes | ForEach-Object { $_.ToString("x2") }) -join "").Substring(1)
 
 $StateBucket = "${UidHex}-tf-state-palu"
 $ProjectA    = "${UidHex}-deployments-palu"
@@ -102,6 +103,7 @@ function Create-Project([string]$id, [string]$name) {
     $gcloudArgs = @($id, "--name=$name")
     if ($FolderId)  { $gcloudArgs += "--folder=$FolderId" }
     elseif ($OrgId) { $gcloudArgs += "--organization=$OrgId" }
+    Write-Host "gcloud projects create ${@gcloudArgs}"
     gcloud projects create @gcloudArgs
     if ($LASTEXITCODE -ne 0) { throw "Failed to create project $id" }
 }

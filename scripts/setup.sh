@@ -64,9 +64,11 @@ if [[ -z "$OWNER" ]]; then
 fi
 
 # ── Generate UID ───────────────────────────────────────────────────────────────
-# 4 random bytes → 8 lowercase hex chars, matching Terraform random_id(byte_length=4)
-UID_HEX=$(python3 -c "import secrets; print(secrets.token_hex(4))" 2>/dev/null \
-          || openssl rand -hex 4)
+# 4 random bytes → 8 lowercase hex chars. GCP project IDs must start with a
+# letter, so we force the first char to "a".
+_raw=$(python3 -c "import secrets; print(secrets.token_hex(4))" 2>/dev/null \
+       || openssl rand -hex 4)
+UID_HEX="a${_raw:1}"
 
 STATE_BUCKET="${UID_HEX}-tf-state-palu"
 PROJECT_A="${UID_HEX}-deployments-palu"
