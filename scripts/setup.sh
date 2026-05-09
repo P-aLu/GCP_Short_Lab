@@ -70,7 +70,7 @@ _raw=$(python3 -c "import secrets; print(secrets.token_hex(4))" 2>/dev/null \
        || openssl rand -hex 4)
 UID_HEX="a${_raw:1}"
 
-STATE_BUCKET="${UID_HEX}-tf-state-palu"
+STATE_BUCKET="${UID_HEX}-deployments-palu"
 PROJECT_A="${UID_HEX}-deployments-palu"
 PROJECT_B="${UID_HEX}-webapp-palu"
 PROJECT_C="${UID_HEX}-admin-palu"

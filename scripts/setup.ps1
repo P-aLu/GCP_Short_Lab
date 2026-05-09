@@ -53,7 +53,7 @@ $rngBytes = [byte[]]::new(4)
 [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($rngBytes)
 $UidHex = "a" + (($rngBytes | ForEach-Object { $_.ToString("x2") }) -join "").Substring(1)
 
-$StateBucket = "${UidHex}-tf-state-palu"
+$StateBucket = "${UidHex}-deployments-palu"
 $ProjectA    = "${UidHex}-deployments-palu"
 $ProjectB    = "${UidHex}-webapp-palu"
 $ProjectC    = "${UidHex}-admin-palu"

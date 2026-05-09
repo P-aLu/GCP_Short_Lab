@@ -46,7 +46,7 @@ Project A  (var.project_id)
 │
 ├── google_service_account.training_start     — learner's starting credential
 │
-├── google_storage_bucket.deployments         — [uid]-deployments
+├── (pre-existing) [uid]-deployments-palu     — shared bucket (state + lab files)
 │   ├── noise: deployment-YYYY-MM-DD.log/txt  — 16 red-herring files
 │   └── [uid]-deployment.tfstate              — planted state (SSH key + SQL creds)
 │
@@ -68,7 +68,7 @@ Project A  (var.project_id)
 | Stage | Resource(s) involved |
 |-------|---------------------|
 | 0 — Deploy | All of the above |
-| 1 — Initial Access | `training_start` SA + `deployments` bucket IAM |
+| 1 — Initial Access | `training_start` SA + `[uid]-deployments-palu` bucket IAM |
 | 2 — tfstate Exfil | `planted_tfstate` object in GCS bucket |
 | 3 — Lateral Movement | `sql_compute` instance + `tls_private_key.ssh` (from tfstate) |
 | 4 — DB Access | `sql_database_instance.main` (authorised network = compute static IP) |

@@ -17,7 +17,7 @@ gsutil ls -p $DEPLOYMENT_UID-deployments-palu
 
 ## 2 - Bucket Enumeration → tfstate Discovery
 
-The deployment bucket `[random-uid]-deployments` contains many `deployment-[date].log` and `deployment-[date].txt` noise files, but also one `$DEPLOYMENT_UID-deployment.tfstate` file.
+The bucket `$DEPLOYMENT_UID-deployments-palu` contains many `deployment-[date].log` and `deployment-[date].txt` noise files, but also one `$DEPLOYMENT_UID-deployment.tfstate` file.
 
 That tfstate contains:
 - GCP `[random-uid]-deployments-sql-compute` compute instance with an **SSH private key** embedded
