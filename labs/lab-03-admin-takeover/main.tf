@@ -1,0 +1,267 @@
+# ── Locals ────────────────────────────────────────────────────────────────────
+locals {
+  uid              = var.deployment_uid
+  bucket_name      = "${local.uid}-admin-credentials"
+  flag_secret_name = "${local.uid}-admin-flag"
+
+  labels = {
+    env   = "lab"
+    lab   = "lab-03-admin-takeover"
+    owner = var.owner
+  }
+}
+
+# ── Required APIs ──────────────────────────────────────────────────────────────
+# secretmanager is enabled only for provisioning; deploy-chain.sh disables it
+# post-apply so students must re-enable it as part of Stage 4.
+resource "google_project_service" "apis" {
+  for_each = toset([
+    "iam.googleapis.com",
+    "storage.googleapis.com",
+    "secretmanager.googleapis.com",
+  ])
+  project            = var.project_id
+  service            = each.key
+  disable_on_destroy = false
+}
+
+# ── Custom role: bucket_policy_manager ────────────────────────────────────────
+# Granted to the cross-lab entry SA (projects_scanner from lab-02).
+# Allows listing buckets and writing their IAM policy — but NOT reading objects.
+# Students must exploit setIamPolicy to grant themselves objectViewer (Stage 1).
+resource "google_project_iam_custom_role" "bucket_policy_manager" {
+  project     = var.project_id
+  role_id     = "bucket_policy_manager"
+  title       = "Bucket Policy Manager"
+  description = "List GCS buckets and set their IAM policies. Does not grant object read access."
+  permissions = [
+    "resourcemanager.projects.get",
+    "storage.buckets.list",
+    "storage.buckets.get",
+    "storage.buckets.getIamPolicy",
+    "storage.buckets.setIamPolicy",
+  ]
+  depends_on = [google_project_service.apis]
+}
+
+# Entry binding — projects_scanner arrives in this project with only this role.
+resource "google_project_iam_member" "scanner_bucket_policy" {
+  project = var.project_id
+  role    = google_project_iam_custom_role.bucket_policy_manager.id
+  member  = "serviceAccount:${var.projects_scanner_sa_email}"
+}
+
+# ── admin-owner service account ───────────────────────────────────────────────
+# Near-owner SA — the high-value target of Stage 2. Students generate a token
+# for this SA using the token-generator credential found in the credentials bucket.
+resource "google_service_account" "admin_owner" {
+  account_id   = "admin-owner"
+  display_name = "Lab 03 — admin-owner (final pivot target)"
+  project      = var.project_id
+  depends_on   = [google_project_service.apis]
+}
+
+resource "google_project_iam_member" "admin_owner_project_owner" {
+  project = var.project_id
+  role    = "roles/owner"
+  member  = "serviceAccount:${google_service_account.admin_owner.email}"
+}
+
+# ── IAM Deny Policy: block admin-owner from enabling APIs ─────────────────────
+# admin-owner carries roles/owner but the Deny Policy overrides it for API
+# management. Students must grant their personal Google account project owner
+# via setIamPolicy and use the GCP Console to re-enable Secret Manager API
+# (Stage 3 → Stage 4 transition).
+resource "google_iam_deny_policy" "block_api_enable" {
+  provider = google-beta
+  parent   = "cloudresourcemanager.googleapis.com/projects/${var.project_id}"
+  name     = "${local.uid}-block-api-enable"
+
+  rules {
+    description = "admin-owner SA cannot enable or disable GCP APIs programmatically"
+    deny_rule {
+      denied_principals  = ["serviceAccount:${google_service_account.admin_owner.email}"]
+      denied_permissions = ["serviceusage.googleapis.com/services.enable"]
+    }
+  }
+
+  depends_on = [
+    google_project_service.apis,
+    google_project_iam_member.admin_owner_project_owner,
+  ]
+}
+
+# ── IAM Deny Policy: restrict Secret Manager access to admin-owner only ───────
+# Even a project owner added via setIamPolicy cannot access the flag secret.
+# Deny takes precedence over Allow — only the admin-owner SA token works.
+# depends_on secret_version ensures destroy reverses this (deny removed first,
+# then secret version can be read and deleted by Terraform).
+resource "google_iam_deny_policy" "flag_secret_guard" {
+  provider = google-beta
+  parent   = "cloudresourcemanager.googleapis.com/projects/${var.project_id}"
+  name     = "${local.uid}-flag-secret-guard"
+
+  rules {
+    description = "All principals except admin-owner SA are denied secretmanager.versions.access"
+    deny_rule {
+      denied_principals    = ["principalSet://goog/public:all"]
+      denied_permissions   = ["secretmanager.googleapis.com/versions.access"]
+      exception_principals = ["principal://iam.googleapis.com/projects/-/serviceAccounts/${google_service_account.admin_owner.email}"]
+    }
+  }
+
+  depends_on = [
+    google_project_service.apis,
+    google_secret_manager_secret_version.flag,
+  ]
+}
+
+# ── token-generator service account ───────────────────────────────────────────
+# The one valid credential in the credentials bucket (at position 5 of 10).
+# Has Token Creator rights on admin-owner SA only and can list SAs in the project.
+resource "google_service_account" "token_generator" {
+  account_id   = "token-generator"
+  display_name = "Lab 03 — token-generator (valid credential in credentials bucket)"
+  project      = var.project_id
+  depends_on   = [google_project_service.apis]
+}
+
+resource "google_service_account_key" "token_generator" {
+  service_account_id = google_service_account.token_generator.name
+}
+
+# Token Creator on admin-owner SA (SA-level binding, not project-wide).
+resource "google_service_account_iam_member" "token_creator" {
+  service_account_id = google_service_account.admin_owner.name
+  role               = "roles/iam.serviceAccountTokenCreator"
+  member             = "serviceAccount:${google_service_account.token_generator.email}"
+}
+
+# Custom role to list SAs — token-generator needs this to enumerate candidates.
+resource "google_project_iam_custom_role" "sa_lister" {
+  project     = var.project_id
+  role_id     = "sa_lister"
+  title       = "Service Account Lister"
+  description = "List and view service accounts in the project."
+  permissions = [
+    "iam.serviceAccounts.list",
+    "iam.serviceAccounts.get",
+  ]
+  depends_on = [google_project_service.apis]
+}
+
+resource "google_project_iam_member" "token_generator_sa_lister" {
+  project = var.project_id
+  role    = google_project_iam_custom_role.sa_lister.id
+  member  = "serviceAccount:${google_service_account.token_generator.email}"
+}
+
+# ── Decoy service accounts (9) ────────────────────────────────────────────────
+# Real SA keys that authenticate successfully but have no meaningful permissions.
+# Their keys are stored alongside the real token-generator key in the bucket.
+# Students must try each credential and identify the one that can list SAs.
+resource "google_service_account" "decoy" {
+  for_each = toset([for i in range(9) : format("%02d", i)])
+
+  account_id   = "sa-decoy-${each.key}"
+  display_name = "Admin project service account ${each.key}"
+  project      = var.project_id
+  depends_on   = [google_project_service.apis]
+}
+
+resource "google_service_account_key" "decoy" {
+  for_each           = google_service_account.decoy
+  service_account_id = each.value.name
+}
+
+# ── Credentials document ───────────────────────────────────────────────────────
+locals {
+  real_key   = jsondecode(base64decode(google_service_account_key.token_generator.private_key))
+  decoy_keys = { for k, v in google_service_account_key.decoy : k => jsondecode(base64decode(v.private_key)) }
+
+  # Real token-generator key placed at position 5 (1-indexed, i.e. index 4).
+  # Students must identify it by testing each credential against the SA list API.
+  ordered_keys = [
+    local.decoy_keys["00"],
+    local.decoy_keys["01"],
+    local.decoy_keys["02"],
+    local.decoy_keys["03"],
+    local.real_key,
+    local.decoy_keys["04"],
+    local.decoy_keys["05"],
+    local.decoy_keys["06"],
+    local.decoy_keys["07"],
+    local.decoy_keys["08"],
+  ]
+
+  credentials_doc = jsonencode({
+    description = "Production service account credentials backup"
+    exported_at = "2024-03-15T10:23:41Z"
+    accounts = [for i, key in local.ordered_keys : {
+      id          = i + 1
+      credentials = key
+    }]
+  })
+}
+
+# ── GCS credentials bucket ─────────────────────────────────────────────────────
+resource "google_storage_bucket" "admin_creds" {
+  name                        = local.bucket_name
+  location                    = var.region
+  project                     = var.project_id
+  uniform_bucket_level_access = true
+  force_destroy               = true
+  labels                      = local.labels
+
+  lifecycle {
+    prevent_destroy = false
+  }
+}
+
+resource "google_storage_bucket_object" "credentials" {
+  name    = "service-accounts.json"
+  bucket  = google_storage_bucket.admin_creds.name
+  content = local.credentials_doc
+}
+
+# ── Flag secret ────────────────────────────────────────────────────────────────
+# Secret Manager API is disabled by deploy-chain.sh after this secret is created.
+# Students must re-enable it via the GCP Console after granting their personal
+# account project owner (Stage 3 → Stage 4). The Deny Policy above ensures only
+# admin-owner SA token can actually read the secret (Stage 5).
+resource "google_secret_manager_secret" "flag" {
+  project   = var.project_id
+  secret_id = local.flag_secret_name
+  labels    = local.labels
+
+  replication {
+    auto {}
+  }
+
+  lifecycle {
+    prevent_destroy = false
+  }
+
+  depends_on = [google_project_service.apis]
+}
+
+resource "google_secret_manager_secret_version" "flag" {
+  secret      = google_secret_manager_secret.flag.id
+  secret_data = var.flag
+
+  # Prevents Terraform from re-reading the secret data on plan/apply after the
+  # flag_secret_guard Deny Policy is in place (which would deny the operator too).
+  lifecycle {
+    ignore_changes = [secret_data]
+  }
+}
+
+# Grant admin-owner SA the Secret Accessor role at the resource level.
+# The flag_secret_guard Deny Policy ensures no other principal can access it
+# even if they have roles/owner at the project level.
+resource "google_secret_manager_secret_iam_member" "flag_admin_owner" {
+  project   = var.project_id
+  secret_id = google_secret_manager_secret.flag.secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.admin_owner.email}"
+}
