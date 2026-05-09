@@ -21,7 +21,7 @@ $LabsDir   = Join-Path $RepoRoot "labs"
 
 # -- Validate terraform.tfvars -------------------------------------------------
 if (-not (Test-Path $TfVars)) {
-    Write-Error "terraform.tfvars not found.`nCopy terraform.tfvars.example and fill in project_id, webapp_project_id, state_bucket, region, zone, and owner."
+    Write-Error "terraform.tfvars not found.`nCopy terraform.tfvars.example and fill in project_id, webapp_project_id, admin_project_id, region, zone, and owner."
 }
 
 # -- Read shared config from root tfvars ---------------------------------------
@@ -35,13 +35,11 @@ function Read-TfVar([string]$key) {
 $ProjectA      = Read-TfVar "project_id"
 $WebappProject = Read-TfVar "webapp_project_id"
 $AdminProject  = Read-TfVar "admin_project_id"
-$StateBucket   = Read-TfVar "state_bucket"
 $PresetUid     = Read-TfVar "deployment_uid"
 
 if (-not $ProjectA)      { Write-Error "project_id not set in terraform.tfvars" }
 if (-not $WebappProject) { Write-Error "webapp_project_id not set in terraform.tfvars" }
 if (-not $AdminProject)  { Write-Error "admin_project_id not set in terraform.tfvars" }
-if (-not $StateBucket)   { Write-Error "state_bucket not set in terraform.tfvars" }
 
 # -- Helpers -------------------------------------------------------------------
 function Banner([string]$msg) {
@@ -53,8 +51,6 @@ function TF-Init([string]$lab) {
     $labDir = Join-Path $LabsDir $lab
     Push-Location $labDir
     terraform init `
-        -backend-config="bucket=$StateBucket" `
-        -backend-config="prefix=$lab" `
         -input=false -upgrade=false | Out-Null
     Pop-Location
 }
@@ -88,8 +84,6 @@ if ($Action -eq "apply") {
     Banner "1/5  lab-01-gsc-privesc - deployments project"
     Push-Location (Join-Path $LabsDir "lab-01-gsc-privesc")
     terraform init `
-        -backend-config="bucket=$StateBucket" `
-        -backend-config="prefix=lab-01-gsc-privesc" `
         -input=false -upgrade=false | Out-Null
     terraform validate
     if ($PresetUid) {
@@ -108,8 +102,6 @@ if ($Action -eq "apply") {
     Banner "2/5  lab-01-gsc-privesc-b - Cloud Function"
     Push-Location (Join-Path $LabsDir "lab-01-gsc-privesc-b")
     terraform init `
-        -backend-config="bucket=$StateBucket" `
-        -backend-config="prefix=lab-01-gsc-privesc-b" `
         -input=false -upgrade=false | Out-Null
     terraform validate
     terraform apply `
@@ -138,8 +130,6 @@ if ($Action -eq "apply") {
     Banner "4/5  lab-02-kms-privesc - KMS / Secret Manager / BigQuery"
     Push-Location (Join-Path $LabsDir "lab-02-kms-privesc")
     terraform init `
-        -backend-config="bucket=$StateBucket" `
-        -backend-config="prefix=lab-02-kms-privesc" `
         -input=false -upgrade=false | Out-Null
     terraform validate
     terraform apply `
@@ -156,8 +146,6 @@ if ($Action -eq "apply") {
     Banner "5/5  lab-03-admin-takeover - admin project"
     Push-Location (Join-Path $LabsDir "lab-03-admin-takeover")
     terraform init `
-        -backend-config="bucket=$StateBucket" `
-        -backend-config="prefix=lab-03-admin-takeover" `
         -input=false -upgrade=false | Out-Null
     terraform validate
     terraform apply `
@@ -251,8 +239,6 @@ if ($Action -eq "apply") {
     Banner "1/4  lab-03-admin-takeover"
     Push-Location (Join-Path $LabsDir "lab-03-admin-takeover")
     terraform init `
-        -backend-config="bucket=$StateBucket" `
-        -backend-config="prefix=lab-03-admin-takeover" `
         -input=false -upgrade=false | Out-Null
     terraform destroy `
         -var-file="$TfVars" `
@@ -266,8 +252,6 @@ if ($Action -eq "apply") {
     Banner "2/4  lab-02-kms-privesc"
     Push-Location (Join-Path $LabsDir "lab-02-kms-privesc")
     terraform init `
-        -backend-config="bucket=$StateBucket" `
-        -backend-config="prefix=lab-02-kms-privesc" `
         -input=false -upgrade=false | Out-Null
     terraform destroy `
         -var-file="$TfVars" `
@@ -281,8 +265,6 @@ if ($Action -eq "apply") {
     Banner "3/4  lab-01-gsc-privesc-b"
     Push-Location (Join-Path $LabsDir "lab-01-gsc-privesc-b")
     terraform init `
-        -backend-config="bucket=$StateBucket" `
-        -backend-config="prefix=lab-01-gsc-privesc-b" `
         -input=false -upgrade=false | Out-Null
     terraform destroy `
         -var-file="$TfVars" `
@@ -297,8 +279,6 @@ if ($Action -eq "apply") {
     Banner "4/4  lab-01-gsc-privesc"
     Push-Location (Join-Path $LabsDir "lab-01-gsc-privesc")
     terraform init `
-        -backend-config="bucket=$StateBucket" `
-        -backend-config="prefix=lab-01-gsc-privesc" `
         -input=false -upgrade=false | Out-Null
     terraform destroy -var-file="$TfVars" -auto-approve
     Pop-Location

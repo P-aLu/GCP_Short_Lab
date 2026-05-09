@@ -15,11 +15,6 @@ variable "zone" {
   default     = "europe-west1-b"
 }
 
-variable "state_bucket" {
-  description = "GCS bucket name used for Terraform remote state (passed via -backend-config by lab.sh)"
-  type        = string
-}
-
 variable "owner" {
   description = "Owner label value applied to all resources"
   type        = string

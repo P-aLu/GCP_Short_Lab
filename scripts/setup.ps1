@@ -53,7 +53,6 @@ $rngBytes = [byte[]]::new(4)
 [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($rngBytes)
 $UidHex = "a" + (($rngBytes | ForEach-Object { $_.ToString("x2") }) -join "").Substring(1)
 
-$StateBucket = "${UidHex}-tf-state-palu"
 $ProjectA    = "${UidHex}-deployments-palu"
 $ProjectB    = "${UidHex}-webapp-palu"
 $ProjectC    = "${UidHex}-admin-palu"
@@ -65,7 +64,6 @@ Write-Host "  Deployment UID : $UidHex"
 Write-Host "  Project A      : $ProjectA"
 Write-Host "  Project B      : $ProjectB"
 Write-Host "  Project C      : $ProjectC"
-Write-Host "  State bucket   : gs://$StateBucket"
 Write-Host "  Billing        : $BillingAccount"
 Write-Host "  Region / Zone  : $Region / $Zone"
 Write-Host "  Owner label    : $Owner"
@@ -121,21 +119,21 @@ function Enable-Apis([string]$id, [string[]]$apis) {
 }
 
 # -- Step 1: Create projects ---------------------------------------------------
-Banner "1/4  Create GCP projects"
+Banner "1/3  Create GCP projects"
 Create-Project $ProjectA "Lab Deployments $UidHex"
 Create-Project $ProjectB "Lab Webapp $UidHex"
 Create-Project $ProjectC "Lab Admin $UidHex"
 Write-Host ""
 
 # -- Step 2: Link billing ------------------------------------------------------
-Banner "2/4  Link billing"
+Banner "2/3  Link billing"
 Link-Billing $ProjectA
 Link-Billing $ProjectB
 Link-Billing $ProjectC
 Write-Host ""
 
 # -- Step 3: Enable APIs -------------------------------------------------------
-Banner "3/4  Enable required APIs"
+Banner "3/3  Enable required APIs"
 
 Enable-Apis $ProjectA @(
     "cloudresourcemanager.googleapis.com",
@@ -170,26 +168,6 @@ Enable-Apis $ProjectC @(
 )
 Write-Host ""
 
-# -- Step 4: Create Terraform state bucket ------------------------------------
-Banner "4/4  Create Terraform state bucket"
-$bucketExists = $false
-try {
-    $null = gcloud storage buckets describe "gs://$StateBucket" 2>&1
-    $bucketExists = ($LASTEXITCODE -eq 0)
-} catch { $bucketExists = $false }
-
-if ($bucketExists) {
-    Write-Host "  [skip] gs://$StateBucket already exists."
-} else {
-    Write-Host "  Creating gs://$StateBucket in $ProjectA..."
-    gcloud storage buckets create "gs://$StateBucket" `
-        --project=$ProjectA `
-        --location=$Region `
-        --uniform-bucket-level-access
-    if ($LASTEXITCODE -ne 0) { throw "Failed to create state bucket" }
-}
-Write-Host ""
-
 # -- Write terraform.tfvars ----------------------------------------------------
 Banner "Writing terraform.tfvars"
 
@@ -202,9 +180,8 @@ webapp_project_id = "$ProjectB"
 admin_project_id  = "$ProjectC"
 
 # -- Shared settings -----------------------------------------------------------
-region       = "$Region"
-zone         = "$Zone"
-state_bucket = "$StateBucket"
+region = "$Region"
+zone   = "$Zone"
 owner        = "$Owner"
 
 # -- Pre-set deployment UID ----------------------------------------------------

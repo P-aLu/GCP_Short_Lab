@@ -1,6 +1,6 @@
 # Per-lab tfvars for lab-02-kms-privesc (KMS / webapp project).
 # Copy to terraform.tfvars and fill in before running lab.sh.
-# Loaded in addition to the root terraform.tfvars (region / state_bucket / owner come from there).
+# Loaded in addition to the root terraform.tfvars (region / zone / owner come from there).
 
 # GCP project ID for the webapp project.
 # Naming convention: [deployment_uid]-webapp-palu

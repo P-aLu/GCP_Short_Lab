@@ -13,12 +13,6 @@ variable "region" {
   type        = string
   default     = "europe-west1"
 }
-
-variable "state_bucket" {
-  description = "GCS bucket name used for Terraform remote state"
-  type        = string
-}
-
 variable "owner" {
   description = "Owner label value applied to all resources"
   type        = string

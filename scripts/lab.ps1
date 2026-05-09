@@ -28,15 +28,9 @@ if (-not (Test-Path $TfVars)) {
     Write-Error "terraform.tfvars not found at $TfVars`nCopy terraform.tfvars.example and fill in your values."
 }
 
-# ── Read state bucket from tfvars ─────────────────────────────────────────────
-$stateLine = Select-String -Path $TfVars -Pattern '^state_bucket' | Select-Object -First 1
-if (-not $stateLine -or $stateLine.Line -notmatch '=\s*"(.*)"') {
-    Write-Error "state_bucket not set in terraform.tfvars"
-}
-$StateBucket = $Matches[1]
 
 # ── Build -var-file chain ─────────────────────────────────────────────────────
-# Root tfvars holds common variables (region, state_bucket, owner).
+# Root tfvars holds common variables (region, zone, owner).
 # A per-lab terraform.tfvars in the lab directory overrides or extends those.
 $VarFileArgs = @("-var-file=$TfVars")
 $LabTfVars   = Join-Path $LabDir "terraform.tfvars"
@@ -48,14 +42,11 @@ if (Test-Path $LabTfVars) {
 # ── Run ───────────────────────────────────────────────────────────────────────
 Write-Host "==> Lab   : $Lab"
 Write-Host "==> Action: $Action"
-Write-Host "==> State : gs://$StateBucket/$Lab/terraform.tfstate"
 Write-Host ""
 
 Push-Location $LabDir
 
 terraform init `
-    -backend-config="bucket=$StateBucket" `
-    -backend-config="prefix=$Lab" `
     -input=false
 
 switch ($Action) {

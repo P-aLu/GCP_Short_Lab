@@ -31,16 +31,9 @@ if [[ ! -f "$TFVARS" ]]; then
   exit 1
 fi
 
-# ── Read state bucket from tfvars ──────────────────────────────────────────────
-STATE_BUCKET=$(grep -E '^state_bucket' "$TFVARS" | sed 's/.*=\s*"\(.*\)"/\1/')
-
-if [[ -z "$STATE_BUCKET" ]]; then
-  echo "ERROR: state_bucket not set in terraform.tfvars"
-  exit 1
-fi
 
 # ── Build -var-file chain ──────────────────────────────────────────────────────
-# Root tfvars holds common variables (region, state_bucket, owner).
+# Root tfvars holds common variables (region, zone, owner).
 # A per-lab terraform.tfvars in the lab directory overrides or extends those —
 # used when a lab targets a different GCP project or needs lab-specific inputs
 # (e.g. cross-lab SA emails). Create it from the lab's terraform.tfvars.example.
@@ -54,14 +47,11 @@ fi
 # ── Run ────────────────────────────────────────────────────────────────────────
 echo "==> Lab   : ${LAB}"
 echo "==> Action: ${ACTION}"
-echo "==> State : gs://${STATE_BUCKET}/${LAB}/terraform.tfstate"
 echo ""
 
 cd "$LAB_DIR"
 
 terraform init \
-  -backend-config="bucket=${STATE_BUCKET}" \
-  -backend-config="prefix=${LAB}" \
   -input=false
 
 case "$ACTION" in

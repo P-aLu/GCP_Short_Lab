@@ -23,7 +23,7 @@ fi
 if [[ ! -f "$TFVARS" ]]; then
   echo "ERROR: terraform.tfvars not found."
   echo "       Copy terraform.tfvars.example and fill in project_id, webapp_project_id,"
-  echo "       state_bucket, region, zone, and owner."
+  echo "       admin_project_id, region, zone, and owner."
   exit 1
 fi
 
@@ -35,26 +35,22 @@ _read_tfvar() {
 PROJECT_A=$(_read_tfvar project_id)
 WEBAPP_PROJECT=$(_read_tfvar webapp_project_id)
 ADMIN_PROJECT=$(_read_tfvar admin_project_id)
-STATE_BUCKET=$(_read_tfvar state_bucket)
 PRESET_UID=$(_read_tfvar deployment_uid)   # optional — set by setup.sh
 
 [[ -n "$PROJECT_A" ]]      || { echo "ERROR: project_id not set in terraform.tfvars";        exit 1; }
 [[ -n "$WEBAPP_PROJECT" ]] || { echo "ERROR: webapp_project_id not set in terraform.tfvars"; exit 1; }
 [[ -n "$ADMIN_PROJECT" ]]  || { echo "ERROR: admin_project_id not set in terraform.tfvars";  exit 1; }
-[[ -n "$STATE_BUCKET" ]]   || { echo "ERROR: state_bucket not set in terraform.tfvars";      exit 1; }
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 # Print a visible step banner.
 _banner() { echo ""; echo "── $* ─────────────────────────────────────────────"; }
 
-# Init a lab's GCS backend (idempotent, output suppressed).
+# Init a lab's local backend (idempotent, output suppressed).
 _init() {
   local lab="$1"
   pushd "${LABS_DIR}/${lab}" > /dev/null
   terraform init \
-    -backend-config="bucket=${STATE_BUCKET}" \
-    -backend-config="prefix=${lab}" \
     -input=false -upgrade=false > /dev/null
   popd > /dev/null
 }
@@ -83,8 +79,6 @@ if [[ "$ACTION" == "apply" ]]; then
   _banner "1/5  lab-01-gsc-privesc — deployments project"
   pushd "${LABS_DIR}/lab-01-gsc-privesc" > /dev/null
   terraform init \
-    -backend-config="bucket=${STATE_BUCKET}" \
-    -backend-config="prefix=lab-01-gsc-privesc" \
     -input=false -upgrade=false > /dev/null
   terraform validate
   # Pass pre-set UID from setup.sh when available so Terraform uses the same
@@ -105,8 +99,6 @@ if [[ "$ACTION" == "apply" ]]; then
   _banner "2/5  lab-01-gsc-privesc-b — Cloud Function"
   pushd "${LABS_DIR}/lab-01-gsc-privesc-b" > /dev/null
   terraform init \
-    -backend-config="bucket=${STATE_BUCKET}" \
-    -backend-config="prefix=lab-01-gsc-privesc-b" \
     -input=false -upgrade=false > /dev/null
   terraform validate
   terraform apply \
@@ -135,8 +127,6 @@ if [[ "$ACTION" == "apply" ]]; then
   _banner "4/5  lab-02-kms-privesc — KMS / Secret Manager / BigQuery"
   pushd "${LABS_DIR}/lab-02-kms-privesc" > /dev/null
   terraform init \
-    -backend-config="bucket=${STATE_BUCKET}" \
-    -backend-config="prefix=lab-02-kms-privesc" \
     -input=false -upgrade=false > /dev/null
   terraform validate
   terraform apply \
@@ -153,8 +143,6 @@ if [[ "$ACTION" == "apply" ]]; then
   _banner "5/5  lab-03-admin-takeover — admin project"
   pushd "${LABS_DIR}/lab-03-admin-takeover" > /dev/null
   terraform init \
-    -backend-config="bucket=${STATE_BUCKET}" \
-    -backend-config="prefix=lab-03-admin-takeover" \
     -input=false -upgrade=false > /dev/null
   terraform validate
   terraform apply \
@@ -247,8 +235,6 @@ elif [[ "$ACTION" == "destroy" ]]; then
   _banner "1/4  lab-03-admin-takeover"
   pushd "${LABS_DIR}/lab-03-admin-takeover" > /dev/null
   terraform init \
-    -backend-config="bucket=${STATE_BUCKET}" \
-    -backend-config="prefix=lab-03-admin-takeover" \
     -input=false -upgrade=false > /dev/null
   terraform destroy \
     -var-file="${TFVARS}" \
@@ -262,8 +248,6 @@ elif [[ "$ACTION" == "destroy" ]]; then
   _banner "2/4  lab-02-kms-privesc"
   pushd "${LABS_DIR}/lab-02-kms-privesc" > /dev/null
   terraform init \
-    -backend-config="bucket=${STATE_BUCKET}" \
-    -backend-config="prefix=lab-02-kms-privesc" \
     -input=false -upgrade=false > /dev/null
   terraform destroy \
     -var-file="${TFVARS}" \
@@ -277,8 +261,6 @@ elif [[ "$ACTION" == "destroy" ]]; then
   _banner "3/4  lab-01-gsc-privesc-b"
   pushd "${LABS_DIR}/lab-01-gsc-privesc-b" > /dev/null
   terraform init \
-    -backend-config="bucket=${STATE_BUCKET}" \
-    -backend-config="prefix=lab-01-gsc-privesc-b" \
     -input=false -upgrade=false > /dev/null
   terraform destroy \
     -var-file="${TFVARS}" \
@@ -293,8 +275,6 @@ elif [[ "$ACTION" == "destroy" ]]; then
   _banner "4/4  lab-01-gsc-privesc"
   pushd "${LABS_DIR}/lab-01-gsc-privesc" > /dev/null
   terraform init \
-    -backend-config="bucket=${STATE_BUCKET}" \
-    -backend-config="prefix=lab-01-gsc-privesc" \
     -input=false -upgrade=false > /dev/null
   terraform destroy \
     -var-file="${TFVARS}" \

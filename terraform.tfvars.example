@@ -28,9 +28,6 @@ region = "europe-west1"
 # GCP zone for compute resources.
 zone = "europe-west1-b"
 
-# GCS bucket used ONLY for Terraform remote state — separate from the lab scenario bucket.
-# Create once: gcloud storage buckets create gs://<NAME> --uniform-bucket-level-access
-state_bucket = "<YOUR_STATE_BUCKET>"
 
 # Your name or LDAP — applied as the `owner` label to every resource.
 owner = "<your-name>"

@@ -109,7 +109,7 @@ This ensures `terraform destroy` is never blocked during a lab tear-down.
 
 ### Backend
 
-The GCS backend bucket is never hardcoded. It is injected at `terraform init` time via `-backend-config="bucket=..."` (done automatically by `lab.sh`).
+State is stored locally in each lab directory (`terraform.tfstate`). The file is git-ignored — never commit it.
 
 ### Provider versions
 

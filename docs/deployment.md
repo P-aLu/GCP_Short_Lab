@@ -13,7 +13,6 @@ gcloud auth application-default login
 Your active account needs:
 - `roles/resourcemanager.projectCreator` at the organization or folder level (or in the account root for personal GCP accounts)
 - `roles/billing.user` on the billing account
-- `roles/storage.admin` to create the state bucket
 
 ### 2 — Set up projects and variables
 
@@ -23,7 +22,7 @@ Choose **one** of the two options below. Option A is recommended.
 
 #### Option A — Fully automated (recommended)
 
-`scripts/setup.sh` / `scripts/setup.ps1` generates a deployment UID, creates all three GCP projects, links billing, enables required APIs, creates the Terraform state bucket, and writes `terraform.tfvars` — all in one command.
+`scripts/setup.sh` / `scripts/setup.ps1` generates a deployment UID, creates all three GCP projects, links billing, enables required APIs, and writes `terraform.tfvars` — all in one command.
 
 **Bash (Linux / macOS / WSL)**
 ```bash
@@ -64,14 +63,6 @@ Create the three projects in the GCP console. Projects follow the naming convent
 | `webapp_project_id` | `[uid]-webapp-palu` — Cloud Function, KMS, Secret Manager, BigQuery |
 | `admin_project_id` | `[uid]-admin-palu` — IAM Deny Policies, credentials bucket, flag secret |
 
-Create the Terraform state bucket (separate from the lab scenario bucket):
-
-```bash
-gcloud storage buckets create gs://<YOUR_STATE_BUCKET> \
-  --location=europe-west1 \
-  --uniform-bucket-level-access
-```
-
 Copy and fill in `terraform.tfvars`:
 
 ```bash
@@ -82,11 +73,10 @@ cp terraform.tfvars.example terraform.tfvars
 project_id        = "<DEPLOYMENTS_PROJECT_ID>"   # [uid]-deployments-palu
 webapp_project_id = "<WEBAPP_PROJECT_ID>"         # [uid]-webapp-palu
 admin_project_id  = "<ADMIN_PROJECT_ID>"          # [uid]-admin-palu
-region            = "europe-west1"
-zone              = "europe-west1-b"
-state_bucket      = "<YOUR_STATE_BUCKET>"
-owner             = "<your-name>"
-deployment_uid    = "<your-chosen-uid>"           # 8 hex chars
+region         = "europe-west1"
+zone           = "europe-west1-b"
+owner          = "<your-name>"
+deployment_uid = "<your-chosen-uid>"           # 8 hex chars
 ```
 
 ---
@@ -295,14 +285,15 @@ PowerShell:
 
 ---
 
-## State layout in GCS
+## State layout (local)
+
+Terraform state files are stored locally in each lab directory and are git-ignored:
 
 ```
-gs://<STATE_BUCKET>/
-  lab-01-gsc-privesc/terraform.tfstate
-  lab-01-gsc-privesc-b/terraform.tfstate
-  lab-02-kms-privesc/terraform.tfstate
-  lab-03-admin-takeover/terraform.tfstate
+labs/lab-01-gsc-privesc/terraform.tfstate
+labs/lab-01-gsc-privesc-b/terraform.tfstate
+labs/lab-02-kms-privesc/terraform.tfstate
+labs/lab-03-admin-takeover/terraform.tfstate
 ```
 
 ---
