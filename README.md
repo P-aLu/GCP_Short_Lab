@@ -1,3 +1,7 @@
+> **Disclaimer:** This project is fully vibe-coded with [Claude Code](https://claude.ai/code) as a dual learning exercise — exploring Claude Code's agentic capabilities while simultaneously getting hands-on with Google Cloud deployments. Expect imperfect code, experimental patterns, and a repo that evolved through conversation rather than upfront design.
+
+---
+
 # Google Cloud Training Lab
 
 A collection of hands-on, infrastructure-as-code GCP labs. Each lab deploys a real cloud environment to practice against and can be torn down in a single command when you are done.
