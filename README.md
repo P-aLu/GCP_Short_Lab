@@ -63,51 +63,49 @@ Your deploying identity (user account or CI service account) needs the following
 gcloud auth application-default login
 ```
 
-### 2 — Create the remote-state bucket (once)
+### 2 — Bootstrap projects and variables (once)
 
-One shared bucket stores state for all labs. The name must be globally unique.
-
+**Bash (Linux / macOS / WSL)**
 ```bash
-gcloud storage buckets create gs://<YOUR_STATE_BUCKET> \
-  --project=<ANY_OF_YOUR_PROJECT_IDs> \
-  --location=europe-west1 \
-  --uniform-bucket-level-access
+./scripts/setup.sh --billing-account=XXXXXX-XXXXXX-XXXXXX
 ```
 
-### 3 — Configure variables
-
-```bash
-cp terraform.tfvars.example terraform.tfvars
+**PowerShell (Windows)**
+```powershell
+.\scripts\setup.ps1 -BillingAccount XXXXXX-XXXXXX-XXXXXX
 ```
 
-Fill in `terraform.tfvars`:
+`setup` creates the three GCP projects, links billing, enables required APIs, creates the Terraform state bucket, and writes `terraform.tfvars` in one shot. Find your billing account ID with `gcloud billing accounts list`.
 
-```hcl
-project_id        = "<DEPLOYMENTS_PROJECT_ID>"   # [uid]-deployments-palu
-webapp_project_id = "<WEBAPP_PROJECT_ID>"         # [uid]-webapp-palu
-region            = "europe-west1"
-zone              = "europe-west1-b"
-state_bucket      = "<YOUR_STATE_BUCKET>"
-owner             = "<your-name>"
-```
+### 3 — Deploy
 
-### 4 — Deploy
-
+**Bash**
 ```bash
 ./scripts/deploy-chain.sh apply
 ```
 
-`deploy-chain.sh` runs all four steps automatically — it captures outputs from each lab and passes them to the next as `-var` flags. No manual tfvars editing is needed between steps.
+**PowerShell**
+```powershell
+.\scripts\deploy-chain.ps1 apply
+```
 
-On completion it prints the deployment UID, Cloud Function URL, and the command to generate the learner's starting SA key.
+The deploy-chain script runs all five steps automatically — it captures outputs from each lab and passes them to the next as `-var` flags. No manual tfvars editing is needed between steps.
 
-### 5 — Tear down
+On completion it prints the deployment UID, Cloud Function URL, and the command to generate the learner's starting SA key. An auto-destroy timer fires after 2 hours.
 
+### 4 — Tear down
+
+**Bash**
 ```bash
 ./scripts/deploy-chain.sh destroy
 ```
 
-Destroys all three labs in reverse order.
+**PowerShell**
+```powershell
+.\scripts\deploy-chain.ps1 destroy
+```
+
+Destroys all labs in reverse order.
 
 ---
 
@@ -131,9 +129,10 @@ Destroys all three labs in reverse order.
 │   ├── lab-01-gsc-privesc-b/          # [uid]-webapp-palu — Cloud Function (flag + RCE surface)
 │   └── lab-02-kms-privesc/            # [uid]-webapp-palu — KMS, Secret Manager, BigQuery
 └── scripts/
-    ├── deploy-chain.sh                # Full chain deploy/destroy with automatic output wiring
-    ├── lab.sh                         # Deploy / destroy / plan a single lab
-    └── all-labs.sh                    # Deploy / destroy all labs in order (no output wiring)
+    ├── setup.sh / setup.ps1           # One-shot bootstrap: create projects, link billing, write terraform.tfvars
+    ├── deploy-chain.sh / .ps1         # Full chain deploy/destroy with automatic output wiring
+    ├── lab.sh / lab.ps1               # Deploy / destroy / plan a single lab
+    └── all-labs.sh / all-labs.ps1     # Deploy / destroy all labs in order (no output wiring)
 ```
 
 ---

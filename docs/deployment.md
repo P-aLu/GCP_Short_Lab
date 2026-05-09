@@ -23,28 +23,34 @@ Choose **one** of the two options below. Option A is recommended.
 
 #### Option A — Fully automated (recommended)
 
-`scripts/setup.sh` generates a deployment UID, creates all three GCP projects, links billing, enables required APIs, creates the Terraform state bucket, and writes `terraform.tfvars` — all in one command.
+`scripts/setup.sh` / `scripts/setup.ps1` generates a deployment UID, creates all three GCP projects, links billing, enables required APIs, creates the Terraform state bucket, and writes `terraform.tfvars` — all in one command.
 
+**Bash (Linux / macOS / WSL)**
 ```bash
 ./scripts/setup.sh --billing-account=XXXXXX-XXXXXX-XXXXXX
 ```
 
-Optional flags:
+**PowerShell (Windows)**
+```powershell
+.\scripts\setup.ps1 -BillingAccount XXXXXX-XXXXXX-XXXXXX
+```
 
-| Flag | Default |
-|------|---------|
-| `--owner=NAME` | prefix of the active gcloud account |
-| `--region=REGION` | `europe-west1` |
-| `--zone=ZONE` | `europe-west1-b` |
-| `--org-id=ID` | _(none — account-level)_ |
-| `--folder-id=ID` | _(none — account-level)_ |
+Optional flags / parameters:
+
+| Bash flag | PowerShell parameter | Default |
+|-----------|---------------------|---------|
+| `--owner=NAME` | `-Owner NAME` | prefix of the active gcloud account |
+| `--region=REGION` | `-Region REGION` | `europe-west1` |
+| `--zone=ZONE` | `-Zone ZONE` | `europe-west1-b` |
+| `--org-id=ID` | `-OrgId ID` | _(none — account-level)_ |
+| `--folder-id=ID` | `-FolderId ID` | _(none — account-level)_ |
 
 Find your billing account ID:
 ```bash
 gcloud billing accounts list
 ```
 
-Once `setup.sh` completes, `terraform.tfvars` is ready and you can jump straight to `deploy-chain.sh apply`.
+Once setup completes, `terraform.tfvars` is ready and you can jump straight to the deploy-chain script.
 
 ---
 
@@ -85,14 +91,20 @@ deployment_uid    = "<your-chosen-uid>"           # 8 hex chars
 
 ---
 
-## Automated deployment — `deploy-chain.sh` (recommended)
+## Automated deployment — `deploy-chain` (recommended)
 
-`deploy-chain.sh` runs all five deployment steps in order, capturing outputs and passing them between labs automatically. No manual editing of per-lab tfvars is needed.
+`deploy-chain.sh` / `deploy-chain.ps1` runs all five deployment steps in order, capturing outputs and passing them between labs automatically. No manual editing of per-lab tfvars is needed.
 
 ### Deploy the full chain
 
+**Bash**
 ```bash
 ./scripts/deploy-chain.sh apply
+```
+
+**PowerShell**
+```powershell
+.\scripts\deploy-chain.ps1 apply
 ```
 
 This runs five steps internally:
@@ -102,27 +114,39 @@ This runs five steps internally:
 4. Apply `lab-02-kms-privesc` with `cf_runtime_sa_email` → captures `projects_scanner_sa_email`
 5. Apply `lab-03-admin-takeover` with `projects_scanner_sa_email`; disables `secretmanager.googleapis.com` post-apply (Stage 4 puzzle)
 
-On completion the script prints the deployment UID, Cloud Function URL, and the `gcloud` command to generate the learner's starting SA key.
+On completion the script prints the deployment UID, Cloud Function URL, and the `gcloud` command to generate the learner's starting SA key. An auto-destroy timer fires after 2 hours to prevent runaway costs.
 
 ### Destroy the full chain
 
+**Bash**
 ```bash
 ./scripts/deploy-chain.sh destroy
+```
+
+**PowerShell**
+```powershell
+.\scripts\deploy-chain.ps1 destroy
 ```
 
 Destroys in reverse order (lab-03 → lab-02 → lab-01-b → lab-01), reading the UID and cross-lab SA emails from existing state before any destroy runs.
 
 ---
 
-## Manual deployment — `lab.sh` (single lab or debugging)
+## Manual deployment — `lab` (single lab or debugging)
 
-Use `lab.sh` when you need to re-deploy a single lab, run a plan, or debug a specific step.
+Use `lab.sh` / `lab.ps1` when you need to re-deploy a single lab, run a plan, or debug a specific step.
 
+**Bash**
 ```bash
 ./scripts/lab.sh <apply|destroy|plan|validate> <lab-folder>
 ```
 
-`lab.sh` loads:
+**PowerShell**
+```powershell
+.\scripts\lab.ps1 <apply|destroy|plan|validate> <lab-folder>
+```
+
+The script loads:
 1. The root `terraform.tfvars` (common variables)
 2. A per-lab `terraform.tfvars` in the lab directory (if it exists — used to override `project_id`, `deployment_uid`, and cross-lab inputs)
 
@@ -131,6 +155,8 @@ Use `lab.sh` when you need to re-deploy a single lab, run a plan, or debug a spe
 If you prefer full control over each step:
 
 **Step 1 — Deploy lab-01-gsc-privesc**
+
+Bash:
 ```bash
 ./scripts/lab.sh apply lab-01-gsc-privesc
 cd labs/lab-01-gsc-privesc
@@ -139,8 +165,19 @@ terraform output cf_api_user
 terraform output -raw cf_api_password # sensitive
 cd ../..
 ```
+PowerShell:
+```powershell
+.\scripts\lab.ps1 apply lab-01-gsc-privesc
+Set-Location labs\lab-01-gsc-privesc
+terraform output deployment_uid
+terraform output cf_api_user
+terraform output -raw cf_api_password
+Set-Location ..\..
+```
 
 **Step 2 — Deploy lab-01-gsc-privesc-b**
+
+Bash:
 ```bash
 cp labs/lab-01-gsc-privesc-b/terraform.tfvars.example \
    labs/lab-01-gsc-privesc-b/terraform.tfvars
@@ -148,14 +185,31 @@ cp labs/lab-01-gsc-privesc-b/terraform.tfvars.example \
 ./scripts/lab.sh apply lab-01-gsc-privesc-b
 cd labs/lab-01-gsc-privesc-b && terraform output function_url && cd ../..
 ```
+PowerShell:
+```powershell
+Copy-Item labs\lab-01-gsc-privesc-b\terraform.tfvars.example `
+          labs\lab-01-gsc-privesc-b\terraform.tfvars
+# Edit: set project_id, deployment_uid, cf_api_user, cf_api_password
+.\scripts\lab.ps1 apply lab-01-gsc-privesc-b
+Set-Location labs\lab-01-gsc-privesc-b; terraform output function_url; Set-Location ..\..
+```
 
 **Step 3 — Seed the function URL into lab-01**
+
+Bash:
 ```bash
 # Add cf_function_url = "<url>" to root terraform.tfvars
 ./scripts/lab.sh apply lab-01-gsc-privesc
 ```
+PowerShell:
+```powershell
+# Add cf_function_url = "<url>" to root terraform.tfvars
+.\scripts\lab.ps1 apply lab-01-gsc-privesc
+```
 
 **Step 4 — Deploy lab-02-kms-privesc**
+
+Bash:
 ```bash
 cp labs/lab-02-kms-privesc/terraform.tfvars.example \
    labs/lab-02-kms-privesc/terraform.tfvars
@@ -163,8 +217,18 @@ cp labs/lab-02-kms-privesc/terraform.tfvars.example \
 ./scripts/lab.sh apply lab-02-kms-privesc
 cd labs/lab-02-kms-privesc && terraform output projects_scanner_sa_email && cd ../..
 ```
+PowerShell:
+```powershell
+Copy-Item labs\lab-02-kms-privesc\terraform.tfvars.example `
+          labs\lab-02-kms-privesc\terraform.tfvars
+# Edit: set project_id (same webapp project), deployment_uid, cf_runtime_sa_email
+.\scripts\lab.ps1 apply lab-02-kms-privesc
+Set-Location labs\lab-02-kms-privesc; terraform output projects_scanner_sa_email; Set-Location ..\..
+```
 
 **Step 5 — Deploy lab-03-admin-takeover**
+
+Bash:
 ```bash
 cp labs/lab-03-admin-takeover/terraform.tfvars.example \
    labs/lab-03-admin-takeover/terraform.tfvars
@@ -175,6 +239,17 @@ cp labs/lab-03-admin-takeover/terraform.tfvars.example \
 gcloud services disable secretmanager.googleapis.com \
   --project=<ADMIN_PROJECT_ID> --quiet
 ```
+PowerShell:
+```powershell
+Copy-Item labs\lab-03-admin-takeover\terraform.tfvars.example `
+          labs\lab-03-admin-takeover\terraform.tfvars
+# Edit: set project_id (admin project), deployment_uid, projects_scanner_sa_email
+.\scripts\lab.ps1 apply lab-03-admin-takeover
+
+# Post-apply: disable Secret Manager API (Stage 4 puzzle)
+gcloud services disable secretmanager.googleapis.com `
+  --project=<ADMIN_PROJECT_ID> --quiet
+```
 
 ---
 
@@ -182,17 +257,30 @@ gcloud services disable secretmanager.googleapis.com \
 
 ### Automated (recommended)
 
+Bash:
 ```bash
 ./scripts/deploy-chain.sh destroy
+```
+PowerShell:
+```powershell
+.\scripts\deploy-chain.ps1 destroy
 ```
 
 ### Manual (reverse order)
 
+Bash:
 ```bash
 ./scripts/lab.sh destroy lab-03-admin-takeover
 ./scripts/lab.sh destroy lab-02-kms-privesc
 ./scripts/lab.sh destroy lab-01-gsc-privesc-b
 ./scripts/lab.sh destroy lab-01-gsc-privesc
+```
+PowerShell:
+```powershell
+.\scripts\lab.ps1 destroy lab-03-admin-takeover
+.\scripts\lab.ps1 destroy lab-02-kms-privesc
+.\scripts\lab.ps1 destroy lab-01-gsc-privesc-b
+.\scripts\lab.ps1 destroy lab-01-gsc-privesc
 ```
 
 > Always destroy in **reverse order** — IAM Deny Policies in lab-03 and cross-project bindings in lab-02 must be removed before their dependency SAs are destroyed.
@@ -234,4 +322,4 @@ gs://<STATE_BUCKET>/
 | `google_kms_key_ring already exists` | Key ring from a prior deployment persists in GCP (key rings are permanent) | `terraform state rm google_kms_key_ring.lab` in lab-02, then re-apply |
 | `Error accessing secret version` during destroy | Secret Manager API was disabled post-apply | Re-enable it first: `gcloud services enable secretmanager.googleapis.com --project=<ADMIN_PROJECT_ID>` |
 | `IAM Deny Policy` blocks secret access | By design — `flag_secret_guard` deny policy denies all except `admin-owner` SA | Use `admin-owner` SA token to access the secret, not personal credentials |
-| `all-labs.sh` stops mid-run | A lab failed | Use `deploy-chain.sh` instead — `all-labs.sh` does not wire cross-lab outputs |
+| `all-labs.sh` / `all-labs.ps1` stops mid-run | A lab failed | Use `deploy-chain` instead — `all-labs` does not wire cross-lab outputs |
