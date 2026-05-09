@@ -3,8 +3,10 @@
 # outputs automatically as -var flags so no manual tfvars editing is needed.
 #
 # Usage:
-#   ./scripts/deploy-chain.sh apply    — provision all labs (4 steps)
-#   ./scripts/deploy-chain.sh destroy  — tear down all labs in reverse order
+#   ./scripts/deploy-chain.sh apply           — provision all labs
+#   ./scripts/deploy-chain.sh apply --org     — provision with IAM Deny Policies (requires GCP Org)
+#   ./scripts/deploy-chain.sh destroy         — tear down all labs in reverse order
+#   ./scripts/deploy-chain.sh destroy --org   — destroy when deployed with --org
 
 set -euo pipefail
 
@@ -15,8 +17,11 @@ LABS_DIR="${REPO_ROOT}/labs"
 
 # ── Argument validation ────────────────────────────────────────────────────────
 ACTION="${1:-}"
+ORG_MODE=false
+for arg in "$@"; do [[ "$arg" == "--org" ]] && ORG_MODE=true; done
+
 if [[ "$ACTION" != "apply" && "$ACTION" != "destroy" ]]; then
-  echo "Usage: $0 <apply|destroy>"
+  echo "Usage: $0 <apply|destroy> [--org]"
   exit 1
 fi
 
@@ -145,12 +150,14 @@ if [[ "$ACTION" == "apply" ]]; then
   terraform init \
     -input=false -upgrade=false > /dev/null
   terraform validate
-  terraform apply \
-    -var-file="${TFVARS}" \
-    -var "project_id=${ADMIN_PROJECT}" \
-    -var "deployment_uid=${UID}" \
-    -var "projects_scanner_sa_email=${SCANNER_SA}" \
-    -auto-approve
+  LAB03_VARS=(
+    -var-file="${TFVARS}"
+    -var "project_id=${ADMIN_PROJECT}"
+    -var "deployment_uid=${UID}"
+    -var "projects_scanner_sa_email=${SCANNER_SA}"
+  )
+  [[ "$ORG_MODE" == "true" ]] && LAB03_VARS+=(-var "enable_deny_policies=true")
+  terraform apply "${LAB03_VARS[@]}" -auto-approve
   popd > /dev/null
 
   # Post-apply: disable Secret Manager API so students must re-enable it via
@@ -236,12 +243,14 @@ elif [[ "$ACTION" == "destroy" ]]; then
   pushd "${LABS_DIR}/lab-03-admin-takeover" > /dev/null
   terraform init \
     -input=false -upgrade=false > /dev/null
-  terraform destroy \
-    -var-file="${TFVARS}" \
-    -var "project_id=${ADMIN_PROJECT}" \
-    -var "deployment_uid=${UID}" \
-    -var "projects_scanner_sa_email=${SCANNER_SA:-placeholder@placeholder.iam.gserviceaccount.com}" \
-    -auto-approve
+  LAB03_VARS=(
+    -var-file="${TFVARS}"
+    -var "project_id=${ADMIN_PROJECT}"
+    -var "deployment_uid=${UID}"
+    -var "projects_scanner_sa_email=${SCANNER_SA:-placeholder@placeholder.iam.gserviceaccount.com}"
+  )
+  [[ "$ORG_MODE" == "true" ]] && LAB03_VARS+=(-var "enable_deny_policies=true")
+  terraform destroy "${LAB03_VARS[@]}" -auto-approve
   popd > /dev/null
 
   # ── Step 2: destroy webapp project resources ───────────────────────────────

@@ -1,5 +1,8 @@
-# Usage: .\scripts\lab.ps1 <apply|destroy|plan|validate> <lab-folder-name>
-# Example: .\scripts\lab.ps1 apply lab-01-gsc-privesc
+# Usage: .\scripts\lab.ps1 <apply|destroy|plan|validate> <lab-folder-name> [-Org]
+# Example: .\scripts\lab.ps1 apply lab-03-admin-takeover -Org
+#
+# -Org  Pass enable_deny_policies=true to lab-03-admin-takeover.
+#       Only valid when the admin project belongs to a GCP Organization.
 
 [CmdletBinding()]
 param(
@@ -8,7 +11,9 @@ param(
     [string]$Action,
 
     [Parameter(Mandatory = $true, Position = 1)]
-    [string]$Lab
+    [string]$Lab,
+
+    [switch]$Org
 )
 
 $ErrorActionPreference = "Stop"
@@ -37,6 +42,16 @@ $LabTfVars   = Join-Path $LabDir "terraform.tfvars"
 if (Test-Path $LabTfVars) {
     $VarFileArgs += "-var-file=$LabTfVars"
     Write-Host "==> Using per-lab tfvars: $LabTfVars"
+}
+
+# -Org flag: enable IAM Deny Policies for lab-03 (requires GCP Organization).
+if ($Org) {
+    if ($Lab -ne "lab-03-admin-takeover") {
+        Write-Warning "-Org flag is only applicable to lab-03-admin-takeover; ignoring."
+    } else {
+        $VarFileArgs += "-var=enable_deny_policies=true"
+        Write-Host "==> Org mode: IAM Deny Policies enabled"
+    }
 }
 
 # ── Run ───────────────────────────────────────────────────────────────────────

@@ -1,0 +1,25 @@
+# Per-lab tfvars for lab-03-admin-takeover (admin project).
+# Copy to terraform.tfvars and fill in before running lab.sh.
+# Loaded in addition to the root terraform.tfvars (region / zone / owner come from there).
+#
+# IMPORTANT: project_id here must be the ADMIN project ([uid]-admin-palu).
+# The root terraform.tfvars project_id points to the deployments project — do NOT use it here.
+
+# GCP project ID for the admin project.
+# Naming convention: [deployment_uid]-admin-palu
+project_id = "<DEPLOYMENT_UID>-admin-palu"
+
+# ── Shared UID (from lab-01-gsc-privesc) ─────────────────────────────────────
+# After applying lab-01-gsc-privesc:
+#   cd labs/lab-01-gsc-privesc && terraform output deployment_uid
+deployment_uid = "<from lab-01-gsc-privesc output: deployment_uid>"
+
+# ── Cross-lab input (from lab-02-kms-privesc) ────────────────────────────────
+#   cd labs/lab-02-kms-privesc && terraform output projects_scanner_sa_email
+projects_scanner_sa_email = "<from lab-02-kms-privesc output: projects_scanner_sa_email>"
+
+# ── IAM Deny Policies (requires GCP Organization) ────────────────────────────
+# Set to true only if the admin project is under a GCP Organization.
+# Check: gcloud projects describe <project_id> --format="value(parent.type)"
+# Returns "organization" → set true. Empty / not found → leave false.
+enable_deny_policies = false

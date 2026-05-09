@@ -2,14 +2,18 @@
 # outputs automatically as -var flags so no manual tfvars editing is needed.
 #
 # Usage:
-#   .\scripts\deploy-chain.ps1 apply    - provision all labs (5 steps)
-#   .\scripts\deploy-chain.ps1 destroy  - tear down all labs in reverse order
+#   .\scripts\deploy-chain.ps1 apply          - provision all labs
+#   .\scripts\deploy-chain.ps1 apply -Org     - provision with IAM Deny Policies (requires GCP Org)
+#   .\scripts\deploy-chain.ps1 destroy        - tear down all labs in reverse order
+#   .\scripts\deploy-chain.ps1 destroy -Org   - destroy when deployed with -Org
 
 [CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)]
     [ValidateSet("apply","destroy")]
-    [string]$Action
+    [string]$Action,
+
+    [switch]$Org
 )
 
 $ErrorActionPreference = "Stop"
@@ -148,12 +152,14 @@ if ($Action -eq "apply") {
     terraform init `
         -input=false -upgrade=false | Out-Null
     terraform validate
-    terraform apply `
-        -var-file="$TfVars" `
-        -var "project_id=$AdminProject" `
-        -var "deployment_uid=$Uid" `
-        -var "projects_scanner_sa_email=$ScannerSa" `
-        -auto-approve
+    $Lab03Vars = @(
+        "-var-file=$TfVars",
+        "-var", "project_id=$AdminProject",
+        "-var", "deployment_uid=$Uid",
+        "-var", "projects_scanner_sa_email=$ScannerSa"
+    )
+    if ($Org) { $Lab03Vars += @("-var", "enable_deny_policies=true") }
+    terraform apply @Lab03Vars -auto-approve
     Pop-Location
 
     # Post-apply: disable Secret Manager API (Stage 4 puzzle)
@@ -240,12 +246,14 @@ if ($Action -eq "apply") {
     Push-Location (Join-Path $LabsDir "lab-03-admin-takeover")
     terraform init `
         -input=false -upgrade=false | Out-Null
-    terraform destroy `
-        -var-file="$TfVars" `
-        -var "project_id=$AdminProject" `
-        -var "deployment_uid=$Uid" `
-        -var "projects_scanner_sa_email=$ScannerSaVar" `
-        -auto-approve
+    $Lab03Vars = @(
+        "-var-file=$TfVars",
+        "-var", "project_id=$AdminProject",
+        "-var", "deployment_uid=$Uid",
+        "-var", "projects_scanner_sa_email=$ScannerSaVar"
+    )
+    if ($Org) { $Lab03Vars += @("-var", "enable_deny_policies=true") }
+    terraform destroy @Lab03Vars -auto-approve
     Pop-Location
 
     # -- Step 2: destroy webapp project resources ------------------------------

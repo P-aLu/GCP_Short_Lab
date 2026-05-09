@@ -29,3 +29,21 @@ variable "flag" {
   type        = string
   default     = "FLAG{1ab03_1am_d3ny_p0l1cy_byp4ss_pwn3d}"
 }
+
+variable "enable_deny_policies" {
+  description = <<-EOT
+    Set to true only when the admin project belongs to a GCP Organization.
+    IAM Deny Policies (google_iam_deny_policy) are unavailable on standalone
+    projects created under a personal Gmail account — the /v2beta/policies/
+    endpoint returns 404 in that case.
+
+    When false: the lab deploys without the two Deny Policy constraints.
+    Stage 3 (block API enable) and Stage 5 (flag guard) lose their enforcement,
+    but the rest of the kill chain remains intact.
+
+    To check: gcloud projects describe <project> --format="value(parent.type)"
+    Returns "organization" if Deny Policies are supported.
+  EOT
+  type        = bool
+  default     = false
+}

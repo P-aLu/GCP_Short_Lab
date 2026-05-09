@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
-# Usage: ./scripts/lab.sh <apply|destroy|plan|validate> <lab-folder-name>
-# Example: ./scripts/lab.sh apply lab-01-gsc-privesc
+# Usage: ./scripts/lab.sh <apply|destroy|plan|validate> <lab-folder-name> [--org]
+# Example: ./scripts/lab.sh apply lab-03-admin-takeover --org
+#
+# --org  Pass enable_deny_policies=true to lab-03-admin-takeover.
+#        Only valid when the admin project belongs to a GCP Organization.
 
 set -euo pipefail
 
@@ -12,9 +15,11 @@ LABS_DIR="${REPO_ROOT}/labs"
 # ── Argument validation ────────────────────────────────────────────────────────
 ACTION="${1:-}"
 LAB="${2:-}"
+ORG_MODE=false
+for arg in "$@"; do [[ "$arg" == "--org" ]] && ORG_MODE=true; done
 
 if [[ -z "$ACTION" || -z "$LAB" ]]; then
-  echo "Usage: $0 <apply|destroy|plan|validate> <lab-folder-name>"
+  echo "Usage: $0 <apply|destroy|plan|validate> <lab-folder-name> [--org]"
   exit 1
 fi
 
@@ -42,6 +47,16 @@ LAB_TFVARS="${LAB_DIR}/terraform.tfvars"
 if [[ -f "$LAB_TFVARS" ]]; then
   VAR_FILE_ARGS+=(-var-file="${LAB_TFVARS}")
   echo "==> Using per-lab tfvars: ${LAB_TFVARS}"
+fi
+
+# --org flag: enable IAM Deny Policies for lab-03 (requires GCP Organization).
+if [[ "$ORG_MODE" == "true" ]]; then
+  if [[ "$LAB" != "lab-03-admin-takeover" ]]; then
+    echo "WARNING: --org is only applicable to lab-03-admin-takeover; ignoring."
+  else
+    VAR_FILE_ARGS+=(-var "enable_deny_policies=true")
+    echo "==> Org mode: IAM Deny Policies enabled"
+  fi
 fi
 
 # ── Run ────────────────────────────────────────────────────────────────────────

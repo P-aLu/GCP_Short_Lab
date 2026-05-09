@@ -80,8 +80,8 @@ resource "google_project_iam_member" "admin_owner_project_owner" {
 # management. Students must grant their personal Google account project owner
 # via setIamPolicy and use the GCP Console to re-enable Secret Manager API
 # (Stage 3 → Stage 4 transition).
+# REQUIRES: project must belong to a GCP Organization.
 resource "google_iam_deny_policy" "block_api_enable" {
-  count    = var.enable_deny_policies ? 1 : 0
   provider = google-beta
   parent   = "cloudresourcemanager.googleapis.com/projects/${var.project_id}"
   name     = "${local.uid}-block-api-enable"
@@ -105,8 +105,8 @@ resource "google_iam_deny_policy" "block_api_enable" {
 # Deny takes precedence over Allow — only the admin-owner SA token works.
 # depends_on secret_version ensures destroy reverses this (deny removed first,
 # then secret version can be read and deleted by Terraform).
+# REQUIRES: project must belong to a GCP Organization.
 resource "google_iam_deny_policy" "flag_secret_guard" {
-  count    = var.enable_deny_policies ? 1 : 0
   provider = google-beta
   parent   = "cloudresourcemanager.googleapis.com/projects/${var.project_id}"
   name     = "${local.uid}-flag-secret-guard"
