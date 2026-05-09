@@ -44,10 +44,10 @@ This repository is a **full infrastructure-as-code, iterable Google Cloud traini
 │   ├── lab-02-kms-privesc/           # [uid]-webapp-palu — KMS, Secret Manager, BigQuery
 │   └── lab-03-admin-takeover/        # [uid]-admin-palu — IAM Deny Policies, credentials bucket, flag secret
 └── scripts/
-    ├── setup.sh / setup.ps1          # One-shot bootstrap: create projects, link billing, write terraform.tfvars
-    ├── deploy-chain.sh / .ps1        # Full chain deploy/destroy with automatic output wiring
-    ├── lab.sh / lab.ps1              # Deploy / destroy a single lab
-    └── all-labs.sh / all-labs.ps1    # Deploy / destroy every lab in lexicographic order
+    ├── setup.sh / setup.ps1              # One-shot bootstrap: create projects, link billing, write terraform.tfvars
+    ├── deploy-chain.sh / .ps1            # Full chain deploy/destroy with automatic output wiring
+    ├── lab.sh / lab.ps1                  # Deploy / destroy a single lab
+    └── destroy-projects.sh / .ps1        # Delete all three GCP projects (run after deploy-chain destroy)
 ```
 
 Each `labs/lab-XX-*/` directory is a **self-contained Terraform root**. Labs must be deployable independently via `lab.sh` / `lab.ps1` when per-lab `terraform.tfvars` is present.

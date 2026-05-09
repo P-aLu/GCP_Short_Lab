@@ -285,6 +285,40 @@ PowerShell:
 
 ---
 
+## Full project deletion — `destroy-projects`
+
+After `deploy-chain destroy` removes all Terraform-managed resources, `destroy-projects.sh` / `destroy-projects.ps1` performs the final step: deleting the three GCP projects themselves. This frees the project IDs and removes any residual resources (e.g. KMS key rings that Terraform cannot delete).
+
+> GCP uses a **30-day soft-delete window** — projects are recoverable from the GCP Console within that period.
+
+**Bash**
+```bash
+./scripts/destroy-projects.sh
+```
+
+**PowerShell**
+```powershell
+.\scripts\destroy-projects.ps1
+```
+
+Both scripts read project IDs from `terraform.tfvars`, prompt for confirmation (type `yes`), then:
+1. Cancel any lingering auto-destroy timer
+2. Delete projects C → B → A via `gcloud projects delete`
+3. Remove `terraform.tfvars` and all `.terraform/` plugin cache directories
+
+Use `--force` / `-Force` to skip the confirmation prompt in CI:
+
+```bash
+./scripts/destroy-projects.sh --force
+```
+```powershell
+.\scripts\destroy-projects.ps1 -Force
+```
+
+After this runs, the environment is fully clean. Re-run `setup.sh` / `setup.ps1` to start fresh.
+
+---
+
 ## State layout (local)
 
 Terraform state files are stored locally in each lab directory and are git-ignored:
