@@ -17,6 +17,9 @@ All labs are designed to minimise cost. This document gives per-service estimate
 | Secret Manager | 02 | Secret Manager | 1 version | ~$0.06/month → ~$0.002/day |
 | BigQuery storage | 02 | BigQuery | < 10 GB | ~$0.00 (free tier) |
 | GCS buckets | all | Cloud Storage | Standard | ~$0.01 |
+| Credentials bucket | 03 | Cloud Storage | Standard | ~$0.00 (< 1 KB object) |
+| Secret Manager (flag) | 03 | Secret Manager | 1 version | ~$0.002/day (shared free tier with lab-02) |
+| IAM Deny Policy | 03 | IAM (org only) | — | ~$0.00 (no per-resource charge) |
 
 **Total (all three projects running): ~$0.30–$0.35/day** (or ~$0.25–$0.30/day in US regions where e2-micro is free)
 

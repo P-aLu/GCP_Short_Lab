@@ -13,10 +13,10 @@
 
 | # | Folder | Title | Type | Status | Notes |
 |---|--------|-------|------|--------|-------|
-| 01-A | `lab-01-gsc-privesc` | GCP Privilege Escalation via Stolen SA Key — Project A | Security / CTF | `[~]` | Terraform complete; awaiting end-to-end test |
-| 01-B | `lab-01-gsc-privesc-b` | GCP Privilege Escalation via Stolen SA Key — Project B (Cloud Function) | Security / CTF | `[~]` | Terraform complete; bridge to lab-02 |
-| 02 | `lab-02-kms-privesc` | KMS Privilege Escalation via Metadata Token | Security / CTF | `[~]` | Terraform complete; awaiting end-to-end test |
-| 03 | `lab-03-admin-takeover` | Admin Project Takeover via IAM Abuse | Security / CTF | `[~]` | Terraform complete; awaiting end-to-end test |
+| 01-A | `lab-01-gsc-privesc` | GCP Privilege Escalation via Stolen SA Key — Project A | Security / CTF | `[X]` | Terraform complete; awaiting end-to-end test |
+| 01-B | `lab-01-gsc-privesc-b` | GCP Privilege Escalation via Stolen SA Key — Project B (Cloud Function) | Security / CTF | `[X]` | Terraform complete; bridge to lab-02 |
+| 02 | `lab-02-kms-privesc` | KMS Privilege Escalation via Metadata Token | Security / CTF | `[X]` | Terraform complete; awaiting end-to-end test |
+| 03 | `lab-03-admin-takeover` | Admin Project Takeover via IAM Abuse | Security / CTF | `[X]` | Terraform complete; awaiting end-to-end test |
 
 ---
 

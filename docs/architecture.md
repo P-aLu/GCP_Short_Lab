@@ -204,15 +204,17 @@ Project C  (var.project_id = $DEPLOYMENT_UID-admin-palu)
 │   └── google_project_iam_member.scanner_bucket_policy   — granted to projects_scanner SA from lab-02
 │
 ├── google_service_account.admin_owner                    — Stage 2 target SA
-│   └── roles/owner (project)
+│   └── roles/resourcemanager.projectIamAdmin (project)  — can call setIamPolicy but NOT enable APIs
 │
-├── google_iam_deny_policy.block_api_enable               — denies admin-owner from serviceusage.services.enable
-├── google_iam_deny_policy.flag_secret_guard              — denies all except admin-owner from SM versions.access
+├── google_iam_deny_policy.flag_secret_guard              — (org deployments only) denies all except admin-owner from SM versions.access
 │
 ├── google_service_account.token_generator                — valid credential in the bucket (position 5 of 10)
 │   ├── google_service_account_key.token_generator        — key stored in credentials bucket
 │   ├── roles/iam.serviceAccountTokenCreator on admin-owner SA
-│   └── custom role sa_lister on project
+│   ├── custom role sa_lister on project                  — iam.serviceAccounts.list/get + getIamPolicy
+│   └── roles/iam.roleViewer on project                   — required for iam.roles.list (not enforceable from custom role)
+│
+├── google_project_iam_custom_role.sa_lister              — list/get SAs and read project IAM policy
 │
 ├── google_service_account.decoy[00..08]                  — 9 decoy SAs with real keys but no permissions
 │   └── google_service_account_key.decoy[00..08]
@@ -221,7 +223,8 @@ Project C  (var.project_id = $DEPLOYMENT_UID-admin-palu)
 │   └── service-accounts.json                             — 10 SA keys (1 valid at position 5)
 │
 └── google_secret_manager_secret.flag                     — [uid]-admin-flag (API disabled post-deploy)
-    └── version: flag string
+    ├── google_secret_manager_secret_version.flag         — flag string (ignore_changes = [secret_data])
+    └── google_secret_manager_secret_iam_member           — admin-owner SA → roles/secretmanager.secretAccessor
 ```
 
 ### Kill chain mapping
@@ -229,19 +232,21 @@ Project C  (var.project_id = $DEPLOYMENT_UID-admin-palu)
 | Stage | Resource(s) involved |
 |-------|---------------------|
 | 0 — Deploy | All of the above; `gcloud services disable secretmanager` run post-apply |
-| 1 — Bucket IAM Abuse | `bucket_policy_manager` role → student grants self `objectViewer` → reads `service-accounts.json` |
-| 2 — Token Generation | `token_generator` SA key → `iam.serviceAccounts.list` → `generateAccessToken` on `admin_owner` |
-| 3 — IAM Binding | `admin_owner` token → `setIamPolicy` → grants student Gmail `roles/owner` |
-| 4 — Enable SM API | Student logs into Console with Gmail account → enables `secretmanager.googleapis.com` |
-| 5 — Final Flag | `admin_owner` token + SM API enabled → `secretmanager.versions.access` → flag |
+| 1 — Bucket IAM Abuse | `bucket_policy_manager` role → student grants self `objectViewer` on `admin_creds` bucket → reads `service-accounts.json` |
+| 2 — Token Generation | `token_generator` SA key (position 5) → `iam.serviceAccounts.list` confirms valid credential → `generateAccessToken` on `admin_owner` SA |
+| 3 — IAM Binding | `admin_owner` token → `resourcemanager.projectIamAdmin` → `setIamPolicy` grants student Gmail `roles/owner` (cannot enable APIs — role excludes `serviceusage.services.enable`) |
+| 4 — Enable SM API | Student logs into GCP Console with Gmail account → enables `secretmanager.googleapis.com` via UI |
+| 5 — Final Flag | `admin_owner` token + SM API enabled → `secretmanager.versions.access` on `flag` secret → flag string (`flag_secret_guard` deny policy blocks Gmail owner in org deployments) |
 
 ### Key design decisions
 
-- **IAM Deny Policies (google-beta)** — two deny policies enforce the two hard constraints: (1) `admin-owner` cannot enable APIs programmatically despite holding `roles/owner`; (2) no identity other than `admin-owner` SA can read the flag secret, even if granted `roles/owner` via `setIamPolicy`. Deny overrides Allow in GCP IAM evaluation.
+- **`projectIamAdmin` instead of `owner` for `admin-owner`** — `admin-owner` holds `roles/resourcemanager.projectIamAdmin`, which includes `resourcemanager.projects.setIamPolicy` (needed for Stage 3) but deliberately excludes `serviceusage.services.enable`. This structural role choice — not a Deny Policy — is what blocks `admin-owner` from enabling the Secret Manager API programmatically. It also avoids needing a second Deny Policy, which requires a GCP Organization.
+- **Single IAM Deny Policy (`flag_secret_guard`, org deployments only)** — when `enable_deny_policies = true`, a `google_iam_deny_policy` (google-beta provider) ensures that even a Gmail account granted `roles/owner` via Stage 3's `setIamPolicy` cannot read the flag secret. Only the `admin-owner` SA token succeeds. Deny overrides Allow in GCP IAM evaluation. Without an org, Stage 5 is unguarded — a project owner can also read the flag.
 - **`depends_on` ordering for destroy** — `flag_secret_guard` deny policy `depends_on` the secret version. Terraform destroy reverses this: deny policy is removed first, then the secret version is accessible for deletion.
 - **`lifecycle { ignore_changes = [secret_data] }` on secret version** — after `flag_secret_guard` is applied, even the Terraform operator is denied `versions.access`. This prevents `terraform plan` from erroring on refresh. The secret data is set once at creation and never re-read by Terraform.
 - **Secret Manager API disabled post-deploy** — `deploy-chain.sh` calls `gcloud services disable secretmanager.googleapis.com` after applying. This creates the Stage 3→4 puzzle: students must discover they can use `setIamPolicy` to grant personal access, then use the GCP Console to re-enable the API.
 - **10 real SA keys, 9 decoys** — all keys authenticate successfully; decoy SAs have no permissions. Students must try each credential against `iam.serviceAccounts.list` to find the usable one. This mirrors real-world credential dumps.
+- **`token-generator` also gets `roles/iam.roleViewer`** — `iam.roles.list` and `iam.roles.get` are meta-IAM operations that GCP does not reliably enforce from custom roles; the predefined `roleViewer` is required. The `sa_lister` custom role covers SA enumeration; `roleViewer` covers role inspection.
 
 ### Deployment order
 
