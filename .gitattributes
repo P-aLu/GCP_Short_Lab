@@ -1,0 +1,6 @@
+# Force LF for all shell scripts and Terraform templates so they don't get
+# CRLF on Windows checkouts and break shebang lines on Linux VMs.
+*.sh        text eol=lf
+*.sh.tpl    text eol=lf
+*.tf        text eol=lf
+*.tfvars    text eol=lf

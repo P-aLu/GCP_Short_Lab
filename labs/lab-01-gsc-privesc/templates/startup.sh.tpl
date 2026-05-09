@@ -4,8 +4,8 @@
 set -euo pipefail
 
 export DEBIAN_FRONTEND=noninteractive
-apt-get update -y
-apt-get install -y default-mysql-client
+apt update -y
+apt install -y default-mysql-client
 
 echo "[startup] Waiting for Cloud SQL to accept connections..."
 until mysql -h "${sql_ip}" -u "${sql_user}" -p"${sql_password}" \

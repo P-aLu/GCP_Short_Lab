@@ -7,12 +7,19 @@ You have stolen a GCP service account key for `training-start@$DEPLOYMENT_UID-de
 With this key you can:
 - **Enumerate buckets** in the `$DEPLOYMENT_UID-deployments-palu` project (`storage.buckets.list`)
 - **Get** and **list objects** inside any bucket you discover
+- **Enumerate compute instances, Cloud SQL, networks, and firewall rules** (custom `labEnvReader` role — list/describe on SQL, list-only on compute instances)
+- Note: `gcloud compute instances describe` is blocked — instance metadata is not readable from this SA
 
-Start by listing buckets to find the deployment bucket:
+Start by mapping the environment:
 ```bash
+# List all compute instances (name, IP, zone — no metadata)
+gcloud compute instances list --project=$DEPLOYMENT_UID-deployments-palu
+
+# List all Cloud SQL instances
+gcloud sql instances list --project=$DEPLOYMENT_UID-deployments-palu
+
+# List buckets
 gcloud storage buckets list --project=$DEPLOYMENT_UID-deployments-palu
-# or
-gsutil ls -p $DEPLOYMENT_UID-deployments-palu
 ```
 
 ## 2 - Bucket Enumeration → tfstate Discovery

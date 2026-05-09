@@ -17,9 +17,12 @@ locals {
   }
 
   # Noise log dates written to the deployment bucket to hide the tfstate among
-  # plausible-looking CI/CD artefacts.
-  noise_dates = [
+  # plausible-looking CI/CD artefacts. Split so the tfstate is sandwiched
+  # between two batches of noise files rather than appended at the end.
+  noise_dates_before = [
     "2024-01-08", "2024-01-22", "2024-02-05", "2024-02-19",
+  ]
+  noise_dates_after = [
     "2024-03-04", "2024-03-18", "2024-04-01", "2024-04-15",
   ]
 }
@@ -121,25 +124,47 @@ resource "google_storage_bucket" "deployments" {
   }
 }
 
-# objectViewer on the bucket grants storage.objects.{get,list} — needed to
-# download objects (including the planted tfstate) once the bucket is found.
-resource "google_storage_bucket_iam_member" "training_start_viewer" {
-  bucket = google_storage_bucket.deployments.name
-  role   = "roles/storage.objectViewer"
-  member = "serviceAccount:${google_service_account.training_start.email}"
+# Custom reader role — grants enough to enumerate the environment (VMs, SQL,
+# networks, firewall rules) without compute.instances.get, which would expose
+# the startup-script metadata and leak credentials before Stage 2.
+resource "google_project_iam_custom_role" "env_reader" {
+  role_id     = "labEnvReader"
+  title       = "Lab Env Reader"
+  description = "Read-only enumeration of compute and SQL resources; no instance metadata access."
+  project     = var.project_id
+
+  permissions = [
+    # Compute — list-level only, no get on instances
+    "compute.instances.list",
+    "compute.zones.list",
+    "compute.regions.list",
+    "compute.addresses.list",
+    "compute.addresses.get",
+    "compute.networks.list",
+    "compute.networks.get",
+    "compute.subnetworks.list",
+    "compute.subnetworks.get",
+    "compute.firewalls.list",
+    "compute.firewalls.get",
+    # Cloud SQL
+    "cloudsql.instances.list",
+    "cloudsql.instances.get",
+    # Project + IAM basics
+    "resourcemanager.projects.get",
+    "iam.serviceAccounts.list",
+  ]
 }
 
-# legacyBucketReader at PROJECT level grants storage.buckets.list so the
-# learner can enumerate all buckets in the project and discover the target.
-resource "google_project_iam_member" "training_start_bucket_lister" {
-  project = var.project_id
-  role    = "roles/storage.legacyBucketReader"
-  member  = "serviceAccount:${google_service_account.training_start.email}"
+resource "google_project_iam_member" "training_start_env_reader" {
+  project    = var.project_id
+  role       = google_project_iam_custom_role.env_reader.name
+  member     = "serviceAccount:${google_service_account.training_start.email}"
+  depends_on = [google_project_iam_custom_role.env_reader]
 }
 
-# ── Noise files ───────────────────────────────────────────────────────────────
-resource "google_storage_bucket_object" "noise_logs" {
-  for_each = toset(local.noise_dates)
+# ── Noise files (before tfstate) ──────────────────────────────────────────────
+resource "google_storage_bucket_object" "noise_logs_before" {
+  for_each = toset(local.noise_dates_before)
 
   name   = "deployment-${each.key}.log"
   bucket = google_storage_bucket.deployments.name
@@ -156,8 +181,8 @@ resource "google_storage_bucket_object" "noise_logs" {
   EOT
 }
 
-resource "google_storage_bucket_object" "noise_txts" {
-  for_each = toset(local.noise_dates)
+resource "google_storage_bucket_object" "noise_txts_before" {
+  for_each = toset(local.noise_dates_before)
 
   name   = "deployment-${each.key}.txt"
   bucket = google_storage_bucket.deployments.name
@@ -302,6 +327,7 @@ locals {
           attributes = {
             algorithm                     = "RSA"
             ecdsa_curve                   = "P224"
+            user                          = local.ssh_user
             id                            = tls_private_key.ssh.public_key_fingerprint_md5
             private_key_openssh           = tls_private_key.ssh.private_key_openssh
             private_key_pem               = tls_private_key.ssh.private_key_pem
@@ -414,4 +440,40 @@ resource "google_storage_bucket_object" "planted_tfstate" {
     google_compute_instance.sql_compute,
     google_sql_database_instance.main,
   ]
+}
+
+# ── Noise files (after tfstate) ───────────────────────────────────────────────
+resource "google_storage_bucket_object" "noise_logs_after" {
+  for_each = toset(local.noise_dates_after)
+
+  name   = "deployment-${each.key}.log"
+  bucket = google_storage_bucket.deployments.name
+  content = <<-EOT
+    [${each.key} 09:12:34] INFO  Deployment pipeline started — ref: main
+    [${each.key} 09:12:35] INFO  Initializing Terraform workspace
+    [${each.key} 09:12:48] INFO  Terraform init complete
+    [${each.key} 09:13:01] INFO  Running terraform validate... OK
+    [${each.key} 09:13:22] INFO  Plan: 0 to add, 2 to change, 0 to destroy
+    [${each.key} 09:13:23] INFO  Applying changes...
+    [${each.key} 09:14:57] INFO  Apply complete! Resources: 2 changed, 0 added, 0 destroyed
+    [${each.key} 09:14:58] INFO  Uploading state artefacts to GCS
+    [${each.key} 09:14:59] INFO  Deployment complete
+  EOT
+}
+
+resource "google_storage_bucket_object" "noise_txts_after" {
+  for_each = toset(local.noise_dates_after)
+
+  name   = "deployment-${each.key}.txt"
+  bucket = google_storage_bucket.deployments.name
+  content = <<-EOT
+    Deployment Summary
+    ==================
+    Date      : ${each.key}
+    Status    : SUCCESS
+    Changed   : 2 resources
+    Duration  : 2m 25s
+    Operator  : cicd-deploy@${var.project_id}.iam.gserviceaccount.com
+    Ref       : main
+  EOT
 }

@@ -4,6 +4,7 @@
 *.tfstate
 *.tfstate.backup
 *.tfplan
+.terraform.tfstate.lock.info
 crash.log
 crash.*.log
 override.tf
