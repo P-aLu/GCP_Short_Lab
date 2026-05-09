@@ -81,7 +81,6 @@ resource "google_compute_subnetwork" "lab" {
 resource "google_compute_firewall" "allow_ssh" {
   name    = "${local.uid}-allow-ssh"
   network = google_compute_network.lab.name
-  labels  = local.labels
 
   allow {
     protocol = "tcp"

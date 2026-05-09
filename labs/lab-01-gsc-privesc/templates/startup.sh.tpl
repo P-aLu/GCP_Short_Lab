@@ -1,6 +1,6 @@
 #!/bin/bash
 # Compute instance startup script — rendered by Terraform templatefile().
-# All ${...} placeholders are substituted at plan/apply time; none are shell variables.
+# All $${...} placeholders are substituted at plan/apply time; none are shell variables.
 set -euo pipefail
 
 export DEBIAN_FRONTEND=noninteractive
