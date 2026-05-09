@@ -34,6 +34,21 @@ If this returns a token, ADC is configured. If it errors, re-run `gcloud auth ap
 
 ---
 
+## Required roles for `setup.sh`
+
+`scripts/setup.sh` creates projects, links billing, and creates a GCS bucket. The active gcloud account needs:
+
+| Scope | Role |
+|-------|------|
+| Organization or folder (if using `--org-id` / `--folder-id`) | `roles/resourcemanager.projectCreator` |
+| Account level (personal GCP accounts with no org) | Project Creator is implicit |
+| Billing account | `roles/billing.user` |
+| Project A (auto-granted as project creator) | `roles/owner` |
+
+After `setup.sh` runs, your account is automatically project owner on all three projects via the creation grant. No additional binding is needed before running `deploy-chain.sh apply`.
+
+---
+
 ## Multi-project authentication
 
 The lab chain uses three GCP projects. The deployer's identity must have the required roles on **all three projects** before running `terraform apply`.

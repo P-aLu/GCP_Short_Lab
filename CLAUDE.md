@@ -44,6 +44,7 @@ This repository is a **full infrastructure-as-code, iterable Google Cloud traini
 │   ├── lab-02-kms-privesc/           # [uid]-webapp-palu — KMS, Secret Manager, BigQuery
 │   └── lab-03-admin-takeover/        # [uid]-admin-palu — IAM Deny Policies, credentials bucket, flag secret
 └── scripts/
+    ├── setup.sh                      # One-shot bootstrap: create projects, link billing, write terraform.tfvars
     ├── deploy-chain.sh               # Full chain deploy/destroy with automatic output wiring
     ├── lab.sh                        # Deploy / destroy a single lab
     └── all-labs.sh                   # Deploy / destroy every lab in lexicographic order
@@ -63,7 +64,7 @@ The lab chain uses **three** GCP projects. All resources across all labs share o
 | `[uid]-webapp-palu` | `lab-01-gsc-privesc-b`, `lab-02-kms-privesc` |
 | `[uid]-admin-palu` | `lab-03-admin-takeover` |
 
-`lab-01-gsc-privesc` generates `random_id.deployment` and exposes it as output `deployment_uid`. All subsequent labs receive `deployment_uid` as an input variable — they never generate their own.
+`setup.sh` generates the UID and writes `deployment_uid` to `terraform.tfvars`. `deploy-chain.sh` passes it to lab-01, which uses it in place of `random_id.deployment`. All subsequent labs receive `deployment_uid` as an input variable — they never generate their own.
 
 ---
 
@@ -80,6 +81,11 @@ The lab chain uses **three** GCP projects. All resources across all labs share o
 ---
 
 ## Common Commands
+
+### Bootstrap projects (first time only)
+```bash
+./scripts/setup.sh --billing-account=XXXXXX-XXXXXX-XXXXXX
+```
 
 ### Deploy the full lab chain
 ```bash
