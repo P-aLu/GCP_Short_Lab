@@ -162,15 +162,14 @@ if ($Action -eq "apply") {
     terraform apply @Lab03Vars -auto-approve
     Pop-Location
 
-    # Post-apply: disable Secret Manager API && Service Usage API (Stage 4 puzzle)
+    # Post-apply: disable Secret Manager API (Stage 4 puzzle).
+    # Students must re-enable it via GCP Console after granting their personal
+    # account project owner. The IAM Deny Policy handles the API-enable constraint
+    # on admin-owner — disabling serviceusage itself is not needed and breaks destroy.
     Write-Host ""
-    Write-Host "    Disabling secretmanager.googleapis.com && serviceusage.googleapis.com in admin project (Stage 4 puzzle)..."
+    Write-Host "    Disabling secretmanager.googleapis.com in admin project (Stage 4 puzzle)..."
     try {
         gcloud services disable secretmanager.googleapis.com `
-            --project=$AdminProject --quiet 2>&1 | Out-Null
-        gcloud services disable cloudapis.googleapis.com `
-            --project=$AdminProject --quiet 2>&1 | Out-Null
-        gcloud services disable serviceusage.googleapis.com `
             --project=$AdminProject --quiet 2>&1 | Out-Null
     } catch { } # non-fatal
 
@@ -224,8 +223,9 @@ if ($Action -eq "apply") {
         }
         Remove-Item $TimerPidFile -Force
     }
-    Write-Host ""
 
+
+    Write-Host ""
     # Collect outputs from existing state BEFORE any destroy call.
     Write-Host "    Reading state outputs..."
     $Uid           = TF-Output "lab-01-gsc-privesc"   "deployment_uid"
@@ -247,6 +247,13 @@ if ($Action -eq "apply") {
 
     # -- Step 1: destroy admin project resources -------------------------------
     Banner "1/4  lab-03-admin-takeover"
+    # Re-enable secretmanager before destroy — Terraform needs it to delete the
+    # flag secret. The API was disabled post-apply as part of the Stage 4 puzzle.
+    Write-Host "    Re-enabling secretmanager.googleapis.com for teardown..."
+    try {
+        gcloud services enable secretmanager.googleapis.com `
+            --project=$AdminProject --quiet 2>&1 | Out-Null
+    } catch { } # non-fatal
     Push-Location (Join-Path $LabsDir "lab-03-admin-takeover")
     terraform init `
         -input=false -upgrade=false | Out-Null

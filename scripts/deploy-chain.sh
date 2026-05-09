@@ -160,8 +160,10 @@ if [[ "$ACTION" == "apply" ]]; then
   terraform apply "${LAB03_VARS[@]}" -auto-approve
   popd > /dev/null
 
-  # Post-apply: disable Secret Manager API so students must re-enable it via
-  # the GCP Console as part of Stage 4 of the kill chain.
+  # Post-apply: disable Secret Manager API (Stage 4 puzzle).
+  # Students must re-enable it via GCP Console after granting their personal
+  # account project owner. The IAM Deny Policy handles the API-enable constraint
+  # on admin-owner — disabling serviceusage itself is not needed and breaks destroy.
   echo ""
   echo "    Disabling secretmanager.googleapis.com in admin project (Stage 4 puzzle)..."
   gcloud services disable secretmanager.googleapis.com \
@@ -240,6 +242,12 @@ elif [[ "$ACTION" == "destroy" ]]; then
 
   # ── Step 1: destroy admin project resources ────────────────────────────────
   _banner "1/4  lab-03-admin-takeover"
+  # Re-enable secretmanager before destroy — Terraform needs it to delete the
+  # flag secret. The API was disabled post-apply as part of the Stage 4 puzzle.
+  echo "    Re-enabling secretmanager.googleapis.com for teardown..."
+  gcloud services enable secretmanager.googleapis.com \
+    --project="${ADMIN_PROJECT}" \
+    --quiet || true
   pushd "${LABS_DIR}/lab-03-admin-takeover" > /dev/null
   terraform init \
     -input=false -upgrade=false > /dev/null
