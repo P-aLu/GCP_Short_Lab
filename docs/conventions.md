@@ -10,7 +10,7 @@ Naming, labelling, and Terraform style rules for this repository. Apply these co
 
 | Resource type | Pattern | Example |
 |---------------|---------|---------|
-| GCS bucket | `[uid]-<purpose>-palu` | `a1b2c3d4-deployments-palu` |
+| GCS bucket | `[uid]-<purpose>` | `a1b2c3d4-deployments` |
 | Compute instance | `[uid]-<purpose>` | `a1b2c3d4-deployments-sql-compute` |
 | Cloud SQL instance | `[uid]-<purpose>` | `a1b2c3d4-deployments-sql` |
 | Cloud Function | `[uid]-<purpose>` | `a1b2c3d4-flag-api` |

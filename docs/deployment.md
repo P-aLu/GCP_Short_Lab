@@ -60,11 +60,17 @@ Create the three projects in the GCP console. Projects follow the naming convent
 
 | Variable in tfvars | Project role |
 |--------------------|-------------|
-| `project_id` | `[uid]-deployments-palu` — shared bucket (state + lab files), compute, Cloud SQL |
+| `project_id` | `[uid]-deployments-palu` — deployments bucket, compute, Cloud SQL |
 | `webapp_project_id` | `[uid]-webapp-palu` — Cloud Function, KMS, Secret Manager, BigQuery |
 | `admin_project_id` | `[uid]-admin-palu` — IAM Deny Policies, credentials bucket, flag secret |
 
-The single shared bucket (`[uid]-deployments-palu`) is created by `setup.sh` / `setup.ps1` before Terraform runs. It stores both Terraform remote state (under per-lab prefixes) and the lab scenario files at the root.
+Create the Terraform state bucket (separate from the lab scenario bucket):
+
+```bash
+gcloud storage buckets create gs://<YOUR_STATE_BUCKET> \
+  --location=europe-west1 \
+  --uniform-bucket-level-access
+```
 
 Copy and fill in `terraform.tfvars`:
 

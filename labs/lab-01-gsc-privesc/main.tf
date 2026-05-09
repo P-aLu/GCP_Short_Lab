@@ -1,6 +1,7 @@
 # ── Locals ────────────────────────────────────────────────────────────────────
 locals {
   uid          = var.deployment_uid != "" ? var.deployment_uid : random_id.deployment.hex
+  bucket_name  = "${local.uid}-deployments"
   compute_name = "${local.uid}-deployments-sql-compute"
   sql_name     = "${local.uid}-deployments-sql"
   network_name = "${local.uid}-lab-network"
@@ -106,15 +107,24 @@ resource "google_service_account" "training_start" {
   depends_on   = [google_project_service.apis]
 }
 
-# ── GCS bucket IAM ───────────────────────────────────────────────────────────
-# The bucket ([uid]-deployments-palu) is pre-created by setup.sh/setup.ps1
-# and shared with Terraform remote state. Lab files land here alongside the
-# state prefixes.
+# ── GCS deployment bucket ─────────────────────────────────────────────────────
+resource "google_storage_bucket" "deployments" {
+  name                        = local.bucket_name
+  location                    = var.region
+  project                     = var.project_id
+  uniform_bucket_level_access = true
+  force_destroy               = true
+  labels                      = local.labels
+
+  lifecycle {
+    prevent_destroy = false
+  }
+}
 
 # objectViewer on the bucket grants storage.objects.{get,list} — needed to
 # download objects (including the planted tfstate) once the bucket is found.
 resource "google_storage_bucket_iam_member" "training_start_viewer" {
-  bucket = var.state_bucket
+  bucket = google_storage_bucket.deployments.name
   role   = "roles/storage.objectViewer"
   member = "serviceAccount:${google_service_account.training_start.email}"
 }
@@ -131,9 +141,8 @@ resource "google_project_iam_member" "training_start_bucket_lister" {
 resource "google_storage_bucket_object" "noise_logs" {
   for_each = toset(local.noise_dates)
 
-  name       = "deployment-${each.key}.log"
-  bucket     = var.state_bucket
-  depends_on = [google_project_service.apis]
+  name   = "deployment-${each.key}.log"
+  bucket = google_storage_bucket.deployments.name
   content = <<-EOT
     [${each.key} 09:12:34] INFO  Deployment pipeline started — ref: main
     [${each.key} 09:12:35] INFO  Initializing Terraform workspace
@@ -150,9 +159,8 @@ resource "google_storage_bucket_object" "noise_logs" {
 resource "google_storage_bucket_object" "noise_txts" {
   for_each = toset(local.noise_dates)
 
-  name       = "deployment-${each.key}.txt"
-  bucket     = var.state_bucket
-  depends_on = [google_project_service.apis]
+  name   = "deployment-${each.key}.txt"
+  bucket = google_storage_bucket.deployments.name
   content = <<-EOT
     Deployment Summary
     ==================
@@ -399,7 +407,7 @@ locals {
 
 resource "google_storage_bucket_object" "planted_tfstate" {
   name    = "${local.uid}-deployment.tfstate"
-  bucket  = var.state_bucket
+  bucket  = google_storage_bucket.deployments.name
   content = local.planted_tfstate
 
   depends_on = [

@@ -25,7 +25,7 @@
 The intended attack path for this lab:
 
 1. `[~]` **Stage 0 — Deployment** — Terraform provisions Project A (SA, GCS bucket, compute, Cloud SQL) and Project B (Cloud Function)
-2. `[ ]` **Stage 1 — Initial Access** — Learner receives stolen SA key; enumerates project buckets (`storage.buckets.list`) to discover `[uid]-deployments-palu`, then lists objects inside it
+2. `[ ]` **Stage 1 — Initial Access** — Learner receives stolen SA key; enumerates project buckets (`storage.buckets.list`) to discover `[uid]-deployments`, then lists objects inside it
 3. `[ ]` **Stage 2 — tfstate Exfil** — Learner finds `$DEPLOYMENT_UID-deployment.tfstate` in the bucket containing SSH private key and resource topology
 4. `[ ]` **Stage 3 — Lateral Movement** — Learner uses SSH key to access compute instance `[uid]-deployments-sql-compute`
 5. `[ ]` **Stage 4 — DB Access** — Learner pivots from the compute instance to Cloud SQL instance `[uid]-deployments-sql` (only reachable from that compute instance)
