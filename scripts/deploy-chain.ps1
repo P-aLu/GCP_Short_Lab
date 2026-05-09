@@ -162,11 +162,15 @@ if ($Action -eq "apply") {
     terraform apply @Lab03Vars -auto-approve
     Pop-Location
 
-    # Post-apply: disable Secret Manager API (Stage 4 puzzle)
+    # Post-apply: disable Secret Manager API && Service Usage API (Stage 4 puzzle)
     Write-Host ""
-    Write-Host "    Disabling secretmanager.googleapis.com in admin project (Stage 4 puzzle)..."
+    Write-Host "    Disabling secretmanager.googleapis.com && serviceusage.googleapis.com in admin project (Stage 4 puzzle)..."
     try {
         gcloud services disable secretmanager.googleapis.com `
+            --project=$AdminProject --quiet 2>&1 | Out-Null
+        gcloud services disable cloudapis.googleapis.com `
+            --project=$AdminProject --quiet 2>&1 | Out-Null
+        gcloud services disable serviceusage.googleapis.com `
             --project=$AdminProject --quiet 2>&1 | Out-Null
     } catch { } # non-fatal
 
