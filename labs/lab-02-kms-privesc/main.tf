@@ -20,14 +20,23 @@ locals {
 # ── Required APIs ─────────────────────────────────────────────────────────────
 resource "google_project_service" "apis" {
   for_each = toset([
+    "cloudresourcemanager.googleapis.com", # required for gcloud projects get-iam-policy and iam roles commands
     "cloudkms.googleapis.com",
     "secretmanager.googleapis.com",
     "bigquery.googleapis.com",
     "iam.googleapis.com",
     "storage.googleapis.com",
   ])
+  project            = var.project_id
   service            = each.key
   disable_on_destroy = false
+}
+
+# GCP API enablement reports success before the API is fully propagated.
+# A 60-second pause prevents the KMS key ring creation from racing ahead.
+resource "time_sleep" "wait_for_apis" {
+  depends_on      = [google_project_service.apis]
+  create_duration = "60s"
 }
 
 # ── Custom role: kms_reader ───────────────────────────────────────────────────
@@ -40,8 +49,6 @@ resource "google_project_iam_custom_role" "kms_reader" {
   description = "List and read Secret Manager secrets; list and use KMS keys to decrypt; read IAM policy."
   permissions = [
     "resourcemanager.projects.getIamPolicy",
-    "iam.roles.get",
-    "iam.roles.list",
     "secretmanager.secrets.list",
     "secretmanager.secrets.get",
     "secretmanager.versions.list",
@@ -59,6 +66,14 @@ resource "google_project_iam_custom_role" "kms_reader" {
 resource "google_project_iam_member" "cf_kms_reader" {
   project = var.project_id
   role    = google_project_iam_custom_role.kms_reader.id
+  member  = "serviceAccount:${var.cf_runtime_sa_email}"
+}
+
+# iam.roles.list / iam.roles.get are not reliably enforced from custom roles —
+# GCP's IAM backend requires the predefined roleViewer for these meta-IAM ops.
+resource "google_project_iam_member" "cf_role_viewer" {
+  project = var.project_id
+  role    = "roles/iam.roleViewer"
   member  = "serviceAccount:${var.cf_runtime_sa_email}"
 }
 
@@ -89,13 +104,16 @@ resource "google_project_iam_member" "webapp_owner_bq_jobs" {
 }
 
 # ── KMS key ring and key ──────────────────────────────────────────────────────
-# Note: KMS key rings cannot be deleted from GCP. Terraform destroy removes
-# them from state only. A fresh apply will always use a new UID.
+# GCP does not support deleting KMS key rings or keys. On terraform destroy the
+# provider schedules key versions for DESTROY_SCHEDULED state. If re-deploying
+# with the same UID: import both resources, then run
+#   gcloud kms keys versions restore 1 ... && gcloud kms keys versions enable 1 ...
+# before applying. Always use a fresh deployment_uid to avoid this entirely.
 resource "google_kms_key_ring" "lab" {
   name       = local.kms_keyring_name
   location   = var.region
   project    = var.project_id
-  depends_on = [google_project_service.apis]
+  depends_on = [time_sleep.wait_for_apis]
 }
 
 resource "google_kms_crypto_key" "webapp" {
@@ -160,6 +178,13 @@ resource "google_project_iam_member" "projects_scanner_browser" {
   project = var.project_id
   role    = "roles/browser"
   member  = "serviceAccount:${google_service_account.projects_scanner.email}"
+}
+
+# BigQuery job IDs are immutable and globally unique within a project — they
+# cannot be reused after destroy. A per-deployment random suffix ensures fresh
+# job IDs on every new deployment cycle.
+resource "random_id" "bq_job_suffix" {
+  byte_length = 4
 }
 
 # ── BigQuery dataset and tables ───────────────────────────────────────────────
@@ -274,7 +299,7 @@ resource "google_storage_bucket_object" "secret_bq_data" {
 
 # ── BigQuery load jobs ────────────────────────────────────────────────────────
 resource "google_bigquery_job" "load_metrics" {
-  job_id   = "${local.uid}-load-metrics"
+  job_id   = "${local.uid}-load-metrics-${random_id.bq_job_suffix.hex}"
   location = var.region
   project  = var.project_id
   labels   = local.labels
@@ -294,7 +319,7 @@ resource "google_bigquery_job" "load_metrics" {
 }
 
 resource "google_bigquery_job" "load_events" {
-  job_id   = "${local.uid}-load-events"
+  job_id   = "${local.uid}-load-events-${random_id.bq_job_suffix.hex}"
   location = var.region
   project  = var.project_id
   labels   = local.labels
@@ -314,7 +339,7 @@ resource "google_bigquery_job" "load_events" {
 }
 
 resource "google_bigquery_job" "load_secret" {
-  job_id   = "${local.uid}-load-secret"
+  job_id   = "${local.uid}-load-secret-${random_id.bq_job_suffix.hex}"
   location = var.region
   project  = var.project_id
   labels   = local.labels
