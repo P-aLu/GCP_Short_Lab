@@ -147,15 +147,17 @@ resource "google_service_account_iam_member" "token_creator" {
   member             = "serviceAccount:${google_service_account.token_generator.email}"
 }
 
-# Custom role to list SAs — token-generator needs this to enumerate candidates.
+# Custom role: list/get SAs and read the project IAM policy.
+# token-generator needs this to enumerate SA candidates and inspect bindings.
 resource "google_project_iam_custom_role" "sa_lister" {
   project     = var.project_id
   role_id     = "sa_lister"
   title       = "Service Account Lister"
-  description = "List and view service accounts in the project."
+  description = "List and view service accounts; read project IAM policy."
   permissions = [
     "iam.serviceAccounts.list",
     "iam.serviceAccounts.get",
+    "resourcemanager.projects.getIamPolicy",
   ]
   depends_on = [time_sleep.wait_for_apis]
 }
@@ -163,6 +165,14 @@ resource "google_project_iam_custom_role" "sa_lister" {
 resource "google_project_iam_member" "token_generator_sa_lister" {
   project = var.project_id
   role    = google_project_iam_custom_role.sa_lister.id
+  member  = "serviceAccount:${google_service_account.token_generator.email}"
+}
+
+# iam.roles.list / iam.roles.get are not reliably enforced from custom roles —
+# GCP's IAM backend requires the predefined roleViewer for these meta-IAM ops.
+resource "google_project_iam_member" "token_generator_role_viewer" {
+  project = var.project_id
+  role    = "roles/iam.roleViewer"
   member  = "serviceAccount:${google_service_account.token_generator.email}"
 }
 
