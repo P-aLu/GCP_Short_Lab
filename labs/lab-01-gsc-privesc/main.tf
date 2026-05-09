@@ -121,18 +121,20 @@ resource "google_storage_bucket" "deployments" {
   }
 }
 
-# objectViewer grants storage.objects.{get,list} — exactly the starting foothold.
+# objectViewer on the bucket grants storage.objects.{get,list} — needed to
+# download objects (including the planted tfstate) once the bucket is found.
 resource "google_storage_bucket_iam_member" "training_start_viewer" {
   bucket = google_storage_bucket.deployments.name
   role   = "roles/storage.objectViewer"
   member = "serviceAccount:${google_service_account.training_start.email}"
 }
 
-# legacyBucketReader is needed for gsutil ls / gcloud storage ls to work.
-resource "google_storage_bucket_iam_member" "training_start_lister" {
-  bucket = google_storage_bucket.deployments.name
-  role   = "roles/storage.legacyBucketReader"
-  member = "serviceAccount:${google_service_account.training_start.email}"
+# legacyBucketReader at PROJECT level grants storage.buckets.list so the
+# learner can enumerate all buckets in the project and discover the target.
+resource "google_project_iam_member" "training_start_bucket_lister" {
+  project = var.project_id
+  role    = "roles/storage.legacyBucketReader"
+  member  = "serviceAccount:${google_service_account.training_start.email}"
 }
 
 # ── Noise files ───────────────────────────────────────────────────────────────
