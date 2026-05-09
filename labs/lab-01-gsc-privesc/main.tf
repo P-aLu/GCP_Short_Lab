@@ -227,7 +227,7 @@ resource "google_sql_user" "lab_user" {
 # ── Compute instance ──────────────────────────────────────────────────────────
 resource "google_compute_instance" "sql_compute" {
   name         = local.compute_name
-  machine_type = "e2-small"
+  machine_type = "e2-micro"
   zone         = var.zone
   project      = var.project_id
   labels       = local.labels
@@ -340,7 +340,7 @@ locals {
           attributes = {
             id           = google_compute_instance.sql_compute.id
             name         = local.compute_name
-            machine_type = "e2-small"
+            machine_type = "e2-micro"
             zone         = var.zone
             labels       = local.labels
             tags         = ["lab-01-ssh"]

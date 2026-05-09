@@ -8,7 +8,7 @@ All labs are designed to minimise cost. This document gives per-service estimate
 
 | Component | Lab | Service | Tier | Est. cost/day |
 |-----------|-----|---------|------|--------------|
-| Compute instance | 01-A | Cloud Compute | e2-small | ~$0.14 |
+| Compute instance | 01-A | Cloud Compute | e2-micro | ~$0.05 (free in US regions) |
 | Cloud SQL | 01-A | Cloud SQL MySQL | db-f1-micro | ~$0.24 |
 | Static IP (idle) | 01-A | VPC | Regional | ~$0.01 |
 | Cloud Function | 01-B | Cloud Functions Gen 2 | 256 MB, 0 min instances | ~$0.00 (free tier) |
@@ -18,9 +18,10 @@ All labs are designed to minimise cost. This document gives per-service estimate
 | BigQuery storage | 02 | BigQuery | < 10 GB | ~$0.00 (free tier) |
 | GCS buckets | all | Cloud Storage | Standard | ~$0.01 |
 
-**Total (all three projects running): ~$0.40–$0.50/day**
+**Total (all three projects running): ~$0.30–$0.35/day** (or ~$0.25–$0.30/day in US regions where e2-micro is free)
 
 > These are estimates for `europe-west1`. Actual costs depend on region, egress, and API call volume. Check the GCP billing console for real numbers.
+> The 2-hour auto-destroy timer in `deploy-chain.sh apply` limits exposure to ~$0.07 per session if you walk away.
 
 ---
 
@@ -28,10 +29,10 @@ All labs are designed to minimise cost. This document gives per-service estimate
 
 ### Compute Engine
 
-- Use `e2-small` as the default. Only use a larger type when the lab explicitly requires it (e.g. a lab about machine types).
+- Use `e2-micro` as the default. It is always-free in US regions (`us-central1`, `us-east1`, `us-west1`) and significantly cheaper than `e2-small` elsewhere. Only go larger when the lab explicitly requires it.
 - Boot disk: `pd-standard` (standard persistent), 20 GB.
 - Always attach a static external IP so it can be reserved and released cleanly.
-- **Destroy after each session** — compute instances accrue cost even when idle.
+- **Destroy after each session** — `deploy-chain.sh apply` spawns a 2-hour auto-destroy timer; rely on it as a safety net, not a substitute for explicit teardown.
 
 ### Cloud SQL
 
@@ -80,7 +81,7 @@ All labs are designed to minimise cost. This document gives per-service estimate
 
 Before ending a lab session:
 
-- [ ] Run `./scripts/all-labs.sh destroy` or `lab.sh destroy` for each lab
+- [ ] Run `./scripts/deploy-chain.sh destroy` (or the auto-destroy timer will do it within 2 hours)
 - [ ] Confirm `terraform show` returns empty state for each lab
 - [ ] Check GCP Billing console > Cost table — look for any `compute.googleapis.com` or `sqladmin.googleapis.com` charges after destroy
 - [ ] KMS key rings will appear in the project but accrue no cost while unused — this is expected

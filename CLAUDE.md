@@ -151,7 +151,7 @@ Every task that changes code, infrastructure, or structure must also update the 
 
 ## Cost Controls
 
-- Default machine types: `e2-small` unless the lab explicitly requires more.
+- Default machine types: `e2-micro` (always-free in US regions; cheapest non-free elsewhere). Only use a larger type when the lab explicitly requires it.
 - Disks: standard persistent (`pd-standard`).
 - Cloud SQL: `db-f1-micro`. Always set `backup_configuration { enabled = false }` and `deletion_protection = false`.
 - Always wire up `terraform destroy` as the cleanup step.
